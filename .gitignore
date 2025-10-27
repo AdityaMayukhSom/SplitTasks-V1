@@ -1,0 +1,18 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.mypy_cache
+
+# Virtual environments
+.venv
+
+# Environmental Variables File
+.env
+
+# Remove temporary testing SQL file
+scripts/temp.sql
+

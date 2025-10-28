@@ -16,7 +16,7 @@ class UserRegister(BaseModel):
 
 
 @user_router.post("/register", response_model=int)
-def register_user(user_register: UserRegister, session: SessionDep):
+async def register_user(user_register: UserRegister, session: SessionDep):
     ph = PasswordHasher()
     hashed_password = ph.hash(user_register.password)
     db_user = User.model_validate(

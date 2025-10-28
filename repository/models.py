@@ -1,10 +1,18 @@
-from datetime import datetime
 from decimal import Decimal
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import DateTime, UniqueConstraint, func
-from sqlmodel import Field, Relationship, Session, SQLModel, create_engine
+from sqlmodel import (
+    Date,
+    DateTime,
+    Field,
+    Relationship,
+    Session,
+    SQLModel,
+    UniqueConstraint,
+    create_engine,
+    func,
+)
 
 from config.vars import EnvVars
 from repository.enums import SplitType, TaskStatus
@@ -31,7 +39,7 @@ class Account(SQLModel, table=True):
     group_id: int = Field(foreign_key="group.id", nullable=False)
     user_id: int = Field(foreign_key="user.id", nullable=False)
 
-    created_at: datetime | None = Field(
+    created_at: DateTime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={
@@ -39,7 +47,7 @@ class Account(SQLModel, table=True):
         },
     )
 
-    updated_at: datetime | None = Field(
+    updated_at: DateTime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={
@@ -72,7 +80,7 @@ class Expense(SQLModel, table=True):
     splits: list["Split"] = Relationship(back_populates="expense")
     images: list["ExpenseImage"] = Relationship(back_populates="expense")
 
-    created_at: datetime | None = Field(
+    created_at: DateTime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={
@@ -80,7 +88,7 @@ class Expense(SQLModel, table=True):
         },
     )
 
-    updated_at: datetime | None = Field(
+    updated_at: DateTime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={
@@ -144,9 +152,9 @@ class Task(SQLModel, table=True):
         },
     )
 
-    deadline: datetime | None = Field(default=None, nullable=True)
+    deadline: DateTime | None = Field(default=None, nullable=True)
 
-    created_at: datetime | None = Field(
+    created_at: DateTime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={
@@ -154,7 +162,7 @@ class Task(SQLModel, table=True):
         },
     )
 
-    updated_at: datetime | None = Field(
+    updated_at: DateTime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={
@@ -173,10 +181,15 @@ class User(SQLModel, table=True):
     email: str = Field(unique=True, nullable=False)
     hashed_password: str = Field(nullable=False)
     full_name: str = Field(nullable=False)
+    date_of_birth: Date | None = Field(
+        default=None,
+        nullable=True,
+        sa_type=Date(),
+    )
     mobile_number: str | None = Field(default=None, nullable=True)
     is_active: bool = Field(default=True, nullable=False)
 
-    created_at: datetime | None = Field(
+    created_at: DateTime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={
@@ -184,7 +197,7 @@ class User(SQLModel, table=True):
         },
     )
 
-    updated_at: datetime | None = Field(
+    updated_at: DateTime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={
@@ -210,16 +223,44 @@ class User(SQLModel, table=True):
 
 class Group(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    title: str = Field(min_length=1, nullable=False)
+    name: str = Field(min_length=1, nullable=False)
     description: str | None = Field(default=None)
-    creator: int = Field(foreign_key="user.id", nullable=False)
-    is_active: bool = Field(default=True, nullable=False)
+    display_image: str | None = Field(
+        default=None,
+        nullable=True,
+        description="image or icon to be shown as group display image",
+    )
+    creator_id: int = Field(
+        foreign_key="user.id",
+        nullable=False,
+        description="user who created the group",
+    )
+    admin_id: int = Field(
+        foreign_key="user.id",
+        nullable=False,
+        description="user responsible for managing the group",
+    )
+    can_users_invite: bool = Field(
+        default=False,
+        nullable=False,
+        description="whether non admin users can add other users in the group or not",
+    )
+    can_users_edit_info: bool = Field(
+        default=False,
+        nullable=False,
+        description="whether non admin users can edit title and description of the group",
+    )
+    is_active: bool = Field(
+        default=True,
+        nullable=False,
+        description="whether the group is currently active, expenses cannot be added to inactive groups",
+    )
 
     currency_code: str = Field(foreign_key="currency.code", nullable=False)
     users: list["User"] = Relationship(back_populates="groups", link_model=UserGroupLink)
     expenses: list["Expense"] = Relationship(back_populates="group")
 
-    created_at: datetime | None = Field(
+    created_at: DateTime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={

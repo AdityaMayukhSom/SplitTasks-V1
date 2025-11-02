@@ -1,0 +1,145 @@
+Code,Name,Country,ShowInUI
+AED,Emirati Dirham,United Arab Emirates,false
+AFN,Afghan Afghani,Afghanistan,false
+ALL,Albanian Lek,Albania,false
+AMD,Armenian Dram,Armenia,false
+AOA,Angolan Kwanza,Angola,false
+ARS,Argentine Peso,Argentina,false
+AUD,Australian Dollar,Australia,false
+AWG,Aruban Florin,Aruba,false
+AZN,Azerbaijani Manat,Azerbaijan,false
+BAM,Bosnia And Herzegovina Convertible Mark,Bosnia and Herzegovina,false
+BBD,Barbadian Dollar,Barbados,false
+BDT,Bangladeshi Taka,Bangladesh,false
+BGN,Bulgarian Lev,Bulgaria,false
+BHD,Bahraini Dinar,Bahrain,false
+BIF,Burundian Franc,Burundi,false
+BMD,Bermudian Dollar,Bermuda,false
+BND,Brunei Dollar,Brunei,false
+BOB,Bolivian Boliviano,Bolivia,false
+BRL,Brazilian Real,Brazil,false
+BSD,Bahamian Dollar,The Bahamas,false
+BTN,Bhutanese Ngultrum,Bhutan,false
+BWP,Botswana Pula,Botswana,false
+BYN,Belarusian Ruble,Belarus,false
+BZD,Belize Dollar,Belize,false
+CAD,Canadian Dollar,Canada,false
+CDF,Congolese Franc,Democratic Republic of the Congo,false
+CHF,Swiss Franc,Switzerland;Liechtenstein,false
+CLP,Chilean Peso,Chile,false
+CNY,Chinese Yuan,China,false
+COP,Colombian Peso,Colombia,false
+CRC,Costa Rican Colón,Costa Rica,false
+CUP,Cuban Peso,Cuba,false
+CVE,Cape Verdean Escudo,Cabo Verde,false
+CZK,Czech Koruna,Czechia,false
+DJF,Djiboutian Franc,Djibouti,false
+DKK,Danish Krone,Denmark;Greenland;Faroe Islands,false
+DOP,Dominican Peso,Dominican Republic,false
+DZD,Algerian Dinar,Algeria,false
+EGP,Egyptian Pound,Egypt,false
+ERN,Eritrean Nakfa,Eritrea,false
+ETB,Ethiopian Birr,Ethiopia,false
+EUR,Euro,European Union;Cyprus,false
+FKP,Falkland Islands Pound,Falkland Islands,false
+GBP,Pounds Sterling,United Kingdom,false
+GEL,Georgian Lari,Georgia,false
+GHS,Ghanaian Cedi,Ghana,false
+GMD,Dalasi,Gambia,false
+GNF,Guinean Franc,Guinea,false
+GTQ,Guatemalan Quetzal,Guatemala,false
+GYD,Guyanese Dollar,Guyana,false
+HKD,Hong Kong Dollar,Hong Kong,false
+HNL,Honduran Lempira,Honduras,false
+HRK,Croatian Kuna,Croatia,false
+HTG,Haitian Gourde,Haiti,false
+HUF,Hungarian Forint,Hungary,false
+IDR,Indonesian Rupiah,Indonesia,false
+ILS,Israeli Shekel,Israel,false
+INR,Indian Rupee,India,false
+IQD,Iraqi Dinar,Iraq,false
+IRR,Iranian Rial,Iran,false
+ISK,Icelandic Króna,Iceland,false
+JMD,Jamaican Dollar,Jamaica,false
+JOD,Jordanian Dinar,Jordan,false
+JPY,Japanese Yen,Japan,false
+KES,Kenyan Shilling,Kenya,false
+KGS,Kyrgyzstani Som,Kyrgyzstan,false
+KHR,Cambodian Riel,Cambodia,false
+KMF,Comorian Franc,Comoros,false
+KPW,North Korean Won,North Korea,false
+KRW,South Korean Won,South Korea,false
+KWD,Kuwaiti Dinar,Kuwait,false
+KYD,Cayman Islands Dollar,Cayman Islands,false
+KZT,Kazakhstani Tenge,Kazakhstan,false
+LAK,Lao Kip,Laos,false
+LBP,Lebanese Pound,Lebanon,false
+LKR,Sri Lankan Rupee,Sri Lanka,false
+LRD,Liberian Dollar,Liberia,false
+LSL,Lesotho Loti,Lesotho,false
+LYD,Libyan Dinar,Libya,false
+MAD,Moroccan Dirham,Morocco,false
+MDL,Moldovan Leu,Moldova,false
+MGA,Malagasy Ariary,Madagascar,false
+MKD,Second Macedonian Denar,North Macedonia,false
+MMK,Kyat,Myanmar,false
+MNT,Mongolian Tögrög,Mongolia,false
+MOP,Macanese Pataca,Macau,false
+MRU,Ouguiya,Mauritania,false
+MUR,Mauritian Rupee,Mauritius,false
+MVR,Maldivian Rufiyaa,Maldives,false
+MWK,Malawian Kwacha,Malawi,false
+MXN,Mexican Peso,Mexico,false
+MYR,Malaysian Ringgit,Malaysia,false
+MZN,Mozambican Metical,Mozambique,false
+NAD,Namibian Dollar,Namibia,false
+NGN,Nigerian Naira,Nigeria,false
+NIO,Nicaraguan Córdoba,Nicaragua,false
+NOK,Norwegian Krone,Norway,false
+NPR,Nepalese Rupee,Nepal,false
+NZD,New Zealand Dollar,New Zealand,false
+OMR,Omani Rial,Oman,false
+PAB,Panamanian Balboa,Panama,false
+PEN,Peruvian Sol,Peru,false
+PHP,Philippine Peso,Philippines,false
+PKR,Pakistani Rupee,Pakistan,false
+PLN,Polish Zloty,Poland,false
+PYG,Paraguayan Guaraní,Paraguay,false
+QAR,Qatari Riyal,Qatar,false
+RON,Romanian Leu,Romania,false
+RSD,Serbian Dinar,Serbia,false
+RUB,Russian Ruble,Russia,false
+RWF,Rwandan Franc,Rwanda,false
+SAR,Saudi Riyal,Saudi Arabia,false
+SCR,Seychellois Rupee,Seychelles,false
+SDG,Sudanese Pound,Sudan,false
+SEK,Swedish Krona,Sweden,false
+SGD,Singapore Dollar,Singapore,false
+SLL,Sierra Leonean Leone,Sierra Leone,false
+SOS,Somali Shilling,Somalia,false
+SRD,Surinamese Dollar,Suriname,false
+SSP,South Sudanese Pound,South Sudan,false
+STN,São Tomé And Príncipe Dobra,Sao Tome and Principe,false
+SYP,Syrian Pound,Syria,false
+SZL,Lilangeni,Eswatini,false
+THB,Thai Baht,Thailand,false
+TJS,Somoni,Tajikistan,false
+TMT,Turkmen New Manat,Turkmenistan,false
+TND,Tunisian Dinar,Tunisia,false
+TRY,Turkish Lira,Turkey,false
+TTD,Trinidad And Tobago Dollar,Trinidad and Tobago,false
+TWD,New Taiwan Dollar,Taiwan,false
+TZS,Tanzanian Shilling,Tanzania,false
+UAH,Ukrainian Hryvna,Ukraine,false
+UGX,Ugandan Shilling,Uganda,false
+USD,United States Dollar,United States Of America;Timor-Leste,false
+UYU,Uruguayan Peso,Uruguay,false
+UZS,Uzbekistan Som,Uzbekistan,false
+VED,Venezuelan Bolívar,Venezuela,false
+VND,Vietnamese Đồng,Vietnam,false
+XAF,CFA Franc,West African Financial Community,false
+XCD,East Caribbean Dollar,Organisation of Eastern Caribbean States,false
+XOF,CFA Franc,Financial Cooperation in Central Africa,false
+YER,Yemeni Rial,Yemen,false
+ZAR,South African Rand,South Africa,false
+ZWG,Zimbabwe Gold,Zimbabwe,false

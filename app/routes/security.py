@@ -1,0 +1,181 @@
+from datetime import timedelta, timezone, datetime
+from typing import Annotated, Literal
+
+import jwt
+from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from pwdlib import PasswordHash
+from sqlmodel import select, Session
+from starlette.responses import JSONResponse
+
+from app.config.vars import JWTVarsDep, JWTVars
+from app.repository.models import User, SessionDep
+from app.routes.base_payload import BasePayload
+
+
+def authenticate_user(email: str, password: str, session: Session) -> User:
+    user_stmt = select(User).where(User.email == email)
+    user = session.exec(user_stmt).one_or_none()
+    if user is None:
+        raise Exception("no user exists with given email", email)
+    hasher = PasswordHash.recommended()
+    if not hasher.verify(password, user.hashed_password):
+        raise Exception("invalid password provided")
+    return user
+
+
+def create_access_token(subject: str, jwt_vars: JWTVars) -> str:
+    current_time = datetime.now(tz=timezone.utc)
+    expiry_delta = timedelta(minutes=jwt_vars.expiry_minutes)
+    expiry_time = current_time + expiry_delta
+    payload = {
+        # JWT subject has to be a string
+        "sub": str(subject),
+        "iat": current_time,
+        "exp": expiry_time,
+        "iss": jwt_vars.issuer,
+    }
+    encoded_jwt = jwt.encode(payload, jwt_vars.secret_key, algorithm=jwt_vars.signing_algo)
+    return encoded_jwt
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+OAuth2SchemeDep = Annotated[OAuth2PasswordBearer, Depends(oauth2_scheme)]
+
+
+class TokenPayload(BasePayload):
+    access_token: str
+    token_type: str
+    expires_in: int
+
+
+class OAuthError(BasePayload):
+    error: Literal[
+        "invalid_request",
+        "invalid_client",
+        "invalid_grant",
+        "invalid_scope",
+        "unauthorized_client",
+        "unsupported_grant_type",
+    ]
+    error_description: str
+
+
+security_router = APIRouter()
+
+
+@security_router.post(
+    "/token",
+    response_model=TokenPayload,
+    response_class=JSONResponse,
+    tags=["security"],
+    description="if the user account is disabled, no access token will be granted.",
+)
+async def login_for_access_token(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    session: SessionDep,
+    jwt_vars: JWTVarsDep,
+):
+    try:
+        user = authenticate_user(form_data.username, form_data.password, session)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=OAuthError(
+                error="invalid_client",
+                error_description="invalid client credentials",
+            ).model_dump(),
+        )
+
+    if not user.enabled:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=OAuthError(
+                error="invalid_grant",
+                error_description="user account is disabled, contact administrator",
+            ).model_dump(),
+        )
+
+    access_token = create_access_token(str(user.id), jwt_vars)
+
+    payload = TokenPayload(
+        access_token=access_token,
+        token_type="Bearer",
+        expires_in=jwt_vars.expiry_minutes * 60,
+    )
+
+    return JSONResponse(
+        content=payload.model_dump(),
+        status_code=status.HTTP_200_OK,
+        headers={"cache-control": "no-store"},
+    )
+
+
+async def get_current_user(token: OAuth2SchemeDep, jwt_vars: JWTVarsDep, session: SessionDep):
+    try:
+        payload: dict = jwt.decode(
+            token,
+            key=jwt_vars.secret_key,
+            algorithms=[jwt_vars.signing_algo],
+            issuer=jwt_vars.issuer,
+            options={"require": ["sub", "exp", "iat", "iss"]},
+        )
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=OAuthError(
+                error="invalid_grant",
+                error_description="jwt token expired, issue a new token",
+            ).model_dump(),
+            headers={"www-authenticate": "Bearer"},
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=OAuthError(
+                error="invalid_request",
+                error_description="invalid jwt token, could not proceed",
+            ).model_dump(),
+            headers={"www-authenticate": "Bearer"},
+        )
+
+    # JWT subject has to be a string
+    jwt_subject: str | None = payload.get("sub")
+
+    if jwt_subject is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=OAuthError(
+                error="invalid_client",
+                error_description="jwt subject not present in token",
+            ).model_dump(),
+            headers={"www-authenticate": "Bearer"},
+        )
+
+    user_id = int(jwt_subject)
+    user: User | None = session.get(User, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=OAuthError(
+                error="invalid_client",
+                error_description="invalid credentials, no user exists, contact administrator",
+            ).model_dump(),
+            headers={"www-authenticate": "Bearer"},
+        )
+
+    # if the user account has been disabled,
+    if not user.enabled:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=OAuthError(
+                error="invalid_grant",
+                error_description="user account is disabled, contact administrator",
+            ).model_dump(),
+        )
+
+    return user
+
+
+CurrentUserDep = Annotated[User, Depends(get_current_user)]

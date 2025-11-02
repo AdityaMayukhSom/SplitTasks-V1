@@ -5,10 +5,11 @@ description = "SplitTasks - Manage Tasks, Expenses and Responsibilites. Availabl
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "argon2-cffi>=25.1.0",
-    "fastapi[standard]>=0.120.1",
+    "fastapi[standard]>=0.120.2",
     "psycopg2>=2.9.11",
+    "pwdlib[argon2,bcrypt]>=0.3.0",
     "pydantic-settings>=2.11.0",
+    "pyjwt[crypto]>=2.10.1",
     "sqlmodel>=0.0.27",
 ]
 authors = [
@@ -20,11 +21,13 @@ maintainers = [
 
 [dependency-groups]
 dev = [
+    "black>=25.9.0",
     "pip>=25.3",
+    "pytest>=8.4.2",
 ]
 
 [tool.black]
-line-length = 100
+line-length = 120
 
 [tool.mypy]
 plugins = ['pydantic.mypy']

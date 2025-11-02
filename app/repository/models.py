@@ -1,7 +1,9 @@
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated
 
 from fastapi import Depends
+from sqlalchemy import Engine
 from sqlmodel import (
     Date,
     DateTime,
@@ -14,8 +16,8 @@ from sqlmodel import (
     func,
 )
 
-from config.vars import EnvVars
-from repository.enums import SplitType, TaskStatus
+from app.config.vars import get_db_vars, DBVarsDep
+from app.repository.enums import SplitType, TaskStatus
 
 # https://stackoverflow.com/questions/224462/storing-money-in-a-decimal-column-what-precision-and-scale
 MONEY_DIGITS = 13
@@ -24,8 +26,9 @@ MONEY_DECIMALS = 4
 
 class Currency(SQLModel, table=True):
     code: str = Field(primary_key=True, min_length=3, max_length=3)
+    name: str = Field(nullable=False, min_length=1)
     country: str = Field(nullable=False, min_length=1)
-    currency_name: str = Field(nullable=False, min_length=1)
+    show_in_ui: bool = Field(nullable=False, default=False)
 
 
 class Account(SQLModel, table=True):
@@ -39,7 +42,7 @@ class Account(SQLModel, table=True):
     group_id: int = Field(foreign_key="group.id", nullable=False)
     user_id: int = Field(foreign_key="user.id", nullable=False)
 
-    created_at: DateTime | None = Field(
+    created_at: datetime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={
@@ -47,7 +50,7 @@ class Account(SQLModel, table=True):
         },
     )
 
-    updated_at: DateTime | None = Field(
+    updated_at: datetime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={
@@ -80,7 +83,7 @@ class Expense(SQLModel, table=True):
     splits: list["Split"] = Relationship(back_populates="expense")
     images: list["ExpenseImage"] = Relationship(back_populates="expense")
 
-    created_at: DateTime | None = Field(
+    created_at: datetime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={
@@ -88,7 +91,7 @@ class Expense(SQLModel, table=True):
         },
     )
 
-    updated_at: DateTime | None = Field(
+    updated_at: datetime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={
@@ -152,9 +155,9 @@ class Task(SQLModel, table=True):
         },
     )
 
-    deadline: DateTime | None = Field(default=None, nullable=True)
+    deadline: datetime | None = Field(default=None, nullable=True)
 
-    created_at: DateTime | None = Field(
+    created_at: datetime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={
@@ -162,7 +165,7 @@ class Task(SQLModel, table=True):
         },
     )
 
-    updated_at: DateTime | None = Field(
+    updated_at: datetime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={
@@ -178,18 +181,19 @@ class UserGroupLink(SQLModel, table=True):
 
 class User(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    email: str = Field(unique=True, nullable=False)
+    email: str = Field(unique=True, nullable=False, index=True)
+    country_code: str | None = Field(default=None, nullable=True)
+    mobile_number: str | None = Field(default=None, nullable=True)
     hashed_password: str = Field(nullable=False)
     full_name: str = Field(nullable=False)
-    date_of_birth: Date | None = Field(
+    date_of_birth: date | None = Field(
         default=None,
         nullable=True,
         sa_type=Date(),
     )
-    mobile_number: str | None = Field(default=None, nullable=True)
-    is_active: bool = Field(default=True, nullable=False)
+    enabled: bool = Field(default=True, nullable=False)
 
-    created_at: DateTime | None = Field(
+    created_at: datetime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={
@@ -197,7 +201,7 @@ class User(SQLModel, table=True):
         },
     )
 
-    updated_at: DateTime | None = Field(
+    updated_at: datetime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={
@@ -250,17 +254,17 @@ class Group(SQLModel, table=True):
         nullable=False,
         description="whether non admin users can edit title and description of the group",
     )
-    is_active: bool = Field(
+    enabled: bool = Field(
         default=True,
         nullable=False,
-        description="whether the group is currently active, expenses cannot be added to inactive groups",
+        description="whether the group is currently enabled, expenses cannot be added to disabled groups",
     )
 
     currency_code: str = Field(foreign_key="currency.code", nullable=False)
     users: list["User"] = Relationship(back_populates="groups", link_model=UserGroupLink)
     expenses: list["Expense"] = Relationship(back_populates="group")
 
-    created_at: DateTime | None = Field(
+    created_at: datetime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
         sa_column_kwargs={
@@ -269,15 +273,21 @@ class Group(SQLModel, table=True):
     )
 
 
-engine = create_engine(EnvVars().get_database_url(), echo=True)
-
-
 def create_db_and_tables():
+    engine = get_engine(get_db_vars())
     SQLModel.metadata.drop_all(engine)
     SQLModel.metadata.create_all(engine)
 
 
-def get_session():
+def get_engine(db_vars: DBVarsDep):
+    engine = create_engine(db_vars.get_database_url(), echo=True)
+    return engine
+
+
+EngineDep = Annotated[Engine, Depends(get_engine)]
+
+
+def get_session(engine: EngineDep):
     with Session(engine) as session:
         yield session
 

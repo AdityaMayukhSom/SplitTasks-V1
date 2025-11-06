@@ -1,215 +1,44 @@
-from datetime import date, datetime
-from decimal import Decimal
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import Depends
+from pydantic import EmailStr, HttpUrl
+from pydantic_extra_types.currency_code import Currency
+from pydantic_extra_types.phone_numbers import PhoneNumber
 from sqlalchemy import Engine
 from sqlmodel import (
-    Date,
     DateTime,
     Field,
     Relationship,
-    Session,
     SQLModel,
-    UniqueConstraint,
     create_engine,
-    func,
+    AutoString,
 )
 
-from app.config.vars import get_db_vars, DBVarsDep
+from app.config.vars import DBVarsDep
+from app.repository.base_models import (
+    _Id,
+    _CreatedAt,
+    _UpdatedAt,
+    _Enabled
+)
 from app.repository.enums import SplitType, TaskStatus
-
-# https://stackoverflow.com/questions/224462/storing-money-in-a-decimal-column-what-precision-and-scale
-MONEY_DIGITS = 13
-MONEY_DECIMALS = 4
+from app.repository.types import TypeMoney, TypeDOB, TypeId
 
 
-class Currency(SQLModel, table=True):
-    code: str = Field(primary_key=True, min_length=3, max_length=3)
-    name: str = Field(nullable=False, min_length=1)
-    country: str = Field(nullable=False, min_length=1)
-    show_in_ui: bool = Field(nullable=False, default=False)
+class Account(_CreatedAt, SQLModel, table=True):
+    user_id: TypeId = Field(foreign_key="user.id", primary_key=True)
+    group_id: TypeId = Field(foreign_key="group.id", primary_key=True)
+    balance: TypeMoney
 
 
-class Account(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    balance: Decimal = Field(
-        default=0.0,
-        nullable=False,
-        max_digits=MONEY_DIGITS,
-        decimal_places=MONEY_DECIMALS,
-    )
-    group_id: int = Field(foreign_key="group.id", nullable=False)
-    user_id: int = Field(foreign_key="user.id", nullable=False)
-
-    created_at: datetime | None = Field(
-        default=None,
-        sa_type=DateTime(timezone=True),
-        sa_column_kwargs={
-            "server_default": func.now(),  # pylint: disable=E1102
-        },
-    )
-
-    updated_at: datetime | None = Field(
-        default=None,
-        sa_type=DateTime(timezone=True),
-        sa_column_kwargs={
-            "onupdate": func.now(),  # pylint: disable=E1102
-        },
-    )
-
-    # https://github.com/fastapi/sqlmodel/issues/114
-    __table_args__ = (
-        UniqueConstraint(
-            "group_id",
-            "user_id",
-            name="unique_user_account_per_group",
-        ),
-    )
-
-
-class Expense(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    payee_id: int = Field(foreign_key="user.id", nullable=False)
-    group_id: int = Field(foreign_key="group.id", nullable=False)
-    group: "Group" = Relationship(back_populates="expenses")
-    amount: Decimal = Field(
-        ge=0.0,
-        nullable=False,
-        max_digits=MONEY_DIGITS,
-        decimal_places=MONEY_DECIMALS,
-    )
-    split_type: SplitType = Field(nullable=False)
-    splits: list["Split"] = Relationship(back_populates="expense")
-    images: list["ExpenseImage"] = Relationship(back_populates="expense")
-
-    created_at: datetime | None = Field(
-        default=None,
-        sa_type=DateTime(timezone=True),
-        sa_column_kwargs={
-            "server_default": func.now(),  # pylint: disable=E1102
-        },
-    )
-
-    updated_at: datetime | None = Field(
-        default=None,
-        sa_type=DateTime(timezone=True),
-        sa_column_kwargs={
-            "onupdate": func.now(),  # pylint: disable=E1102
-        },
-    )
-
-
-class ExpenseImage(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    expense_id: int = Field(foreign_key="expense.id", nullable=False, index=True)
-    expense: Expense = Relationship(back_populates="images")
-    uploaded_by: int = Field(foreign_key="user.id", nullable=False)
-    permalink: str = Field(min_length=1)
-
-
-class Split(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", nullable=False)
-    expense_id: int = Field(foreign_key="expense.id", nullable=False, index=True)
-    expense: Expense = Relationship(back_populates="splits")
-    amount: Decimal = Field(
-        ge=0.0,
-        nullable=False,
-        max_digits=MONEY_DIGITS,
-        decimal_places=MONEY_DECIMALS,
-    )
-
-    __table_args__ = (
-        UniqueConstraint(
-            "user_id",
-            "expense_id",
-            name="unique_user_split_per_expense",
-        ),
-    )
-
-
-class Task(SQLModel, table=True):
-    """
-    Reference: https://github.com/fastapi/sqlmodel/discussions/1038
-    """
-
-    id: int | None = Field(default=None, primary_key=True)
-    status: TaskStatus = Field(default=TaskStatus.PENDING, nullable=False)
-    title: str = Field(nullable=False)
-    description: str | None = Field(default=None, nullable=True)
-
-    assignee_id: int = Field(foreign_key="user.id", nullable=False)
-    assignee: "User" = Relationship(
-        back_populates="received_tasks",
-        sa_relationship_kwargs={
-            "foreign_keys": "Task.assignee_id",
-        },
-    )
-
-    assigner_id: int = Field(foreign_key="user.id", nullable=False)
-    assigner: "User" = Relationship(
-        back_populates="assigned_tasks",
-        sa_relationship_kwargs={
-            "foreign_keys": "Task.assigner_id",
-        },
-    )
-
-    deadline: datetime | None = Field(default=None, nullable=True)
-
-    created_at: datetime | None = Field(
-        default=None,
-        sa_type=DateTime(timezone=True),
-        sa_column_kwargs={
-            "server_default": func.now(),  # pylint: disable=E1102
-        },
-    )
-
-    updated_at: datetime | None = Field(
-        default=None,
-        sa_type=DateTime(timezone=True),
-        sa_column_kwargs={
-            "onupdate": func.now(),  # pylint: disable=E1102
-        },
-    )
-
-
-class UserGroupLink(SQLModel, table=True):
-    user_id: int = Field(foreign_key="user.id", primary_key=True)
-    group_id: int = Field(foreign_key="group.id", primary_key=True)
-
-
-class User(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    email: str = Field(unique=True, nullable=False, index=True)
-    country_code: str | None = Field(default=None, nullable=True)
-    mobile_number: str | None = Field(default=None, nullable=True)
-    hashed_password: str = Field(nullable=False)
-    full_name: str = Field(nullable=False)
-    date_of_birth: date | None = Field(
-        default=None,
-        nullable=True,
-        sa_type=Date(),
-    )
-    enabled: bool = Field(default=True, nullable=False)
-
-    created_at: datetime | None = Field(
-        default=None,
-        sa_type=DateTime(timezone=True),
-        sa_column_kwargs={
-            "server_default": func.now(),  # pylint: disable=E1102
-        },
-    )
-
-    updated_at: datetime | None = Field(
-        default=None,
-        sa_type=DateTime(timezone=True),
-        sa_column_kwargs={
-            "onupdate": func.now(),  # pylint: disable=E1102
-        },
-    )
-
-    groups: list["Group"] = Relationship(back_populates="users", link_model=UserGroupLink)
+class User(_Id, _CreatedAt, _UpdatedAt, _Enabled, SQLModel, table=True):
+    full_name: str = Field(min_length=2)
+    email: EmailStr = Field(unique=True, index=True)
+    mobile_number: PhoneNumber = Field(unique=True, index=True)
+    hashed_password: str
+    dob: TypeDOB
+    groups: list["Group"] = Relationship(back_populates="users", link_model=Account)
 
     assigned_tasks: list["Task"] = Relationship(
         back_populates="assigner",
@@ -217,6 +46,7 @@ class User(SQLModel, table=True):
             "foreign_keys": "Task.assigner_id",
         },
     )
+
     received_tasks: list["Task"] = Relationship(
         back_populates="assignee",
         sa_relationship_kwargs={
@@ -225,58 +55,65 @@ class User(SQLModel, table=True):
     )
 
 
-class Group(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    name: str = Field(min_length=1, nullable=False)
+class Group(_Id, _CreatedAt, _Enabled, SQLModel, table=True):
+    name: str = Field(min_length=1)
     description: str | None = Field(default=None)
-    display_image: str | None = Field(
-        default=None,
-        nullable=True,
-        description="image or icon to be shown as group display image",
-    )
-    creator_id: int = Field(
-        foreign_key="user.id",
-        nullable=False,
-        description="user who created the group",
-    )
-    admin_id: int = Field(
-        foreign_key="user.id",
-        nullable=False,
-        description="user responsible for managing the group",
-    )
-    can_users_invite: bool = Field(
-        default=False,
-        nullable=False,
-        description="whether non admin users can add other users in the group or not",
-    )
-    can_users_edit_info: bool = Field(
-        default=False,
-        nullable=False,
-        description="whether non admin users can edit title and description of the group",
-    )
-    enabled: bool = Field(
-        default=True,
-        nullable=False,
-        description="whether the group is currently enabled, expenses cannot be added to disabled groups",
-    )
-
-    currency_code: str = Field(foreign_key="currency.code", nullable=False)
-    users: list["User"] = Relationship(back_populates="groups", link_model=UserGroupLink)
+    currency: Currency
+    display_image: HttpUrl = Field(sa_type=AutoString)
+    creator_id: TypeId = Field(foreign_key="user.id")
+    admin_id: TypeId = Field(foreign_key="user.id")
+    can_users_invite: bool = Field(default=False)
+    can_users_edit_info: bool = Field(default=False)
+    users: list["User"] = Relationship(back_populates="groups", link_model=Account)
     expenses: list["Expense"] = Relationship(back_populates="group")
 
-    created_at: datetime | None = Field(
-        default=None,
-        sa_type=DateTime(timezone=True),
-        sa_column_kwargs={
-            "server_default": func.now(),  # pylint: disable=E1102
+
+class Task(_Id, _CreatedAt, _UpdatedAt, SQLModel, table=True):
+    status: TaskStatus = Field(default=TaskStatus.PENDING)
+    title: str = Field(nullable=False)
+    description: str | None = Field(default=None, nullable=True)
+    deadline: datetime = Field(sa_type=DateTime(timezone=True))
+
+    # Reference: https://github.com/fastapi/sqlmodel/discussions/1038
+    assignee_id: TypeId = Field(foreign_key="user.id")
+    assignee: "User" = Relationship(
+        back_populates="received_tasks",
+        sa_relationship_kwargs={
+            "foreign_keys": "Task.assignee_id",
+        },
+    )
+
+    assigner_id: TypeId = Field(foreign_key="user.id")
+    assigner: "User" = Relationship(
+        back_populates="assigned_tasks",
+        sa_relationship_kwargs={
+            "foreign_keys": "Task.assigner_id",
         },
     )
 
 
-def create_db_and_tables():
-    engine = get_engine(get_db_vars())
-    SQLModel.metadata.drop_all(engine)
-    SQLModel.metadata.create_all(engine)
+class Expense(_Id, _CreatedAt, _UpdatedAt, SQLModel, table=True):
+    payee_id: TypeId = Field(foreign_key="user.id")
+    group_id: TypeId = Field(foreign_key="group.id")
+    group: "Group" = Relationship(back_populates="expenses")
+    amount: TypeMoney
+    split_type: SplitType = Field(default=SplitType.EQUAL)
+    splits: list["Split"] = Relationship(back_populates="expense")
+    images: list["ExpenseImage"] = Relationship(back_populates="expense")
+
+
+class ExpenseImage(_Id, SQLModel, table=True):
+    uploaded_by: TypeId = Field(foreign_key="user.id")
+    expense_id: TypeId = Field(foreign_key="expense.id", index=True)
+    expense: Expense = Relationship(back_populates="images")
+    permalink: HttpUrl = Field(sa_type=AutoString)
+
+
+class Split(SQLModel, table=True):
+    user_id: TypeId = Field(foreign_key="user.id", primary_key=True)
+    expense_id: TypeId = Field(foreign_key="expense.id", primary_key=True)
+    expense: Expense = Relationship(back_populates="splits")
+    amount: TypeMoney
 
 
 def get_engine(db_vars: DBVarsDep):
@@ -285,11 +122,3 @@ def get_engine(db_vars: DBVarsDep):
 
 
 EngineDep = Annotated[Engine, Depends(get_engine)]
-
-
-def get_session(engine: EngineDep):
-    with Session(engine) as session:
-        yield session
-
-
-SessionDep = Annotated[Session, Depends(get_session)]

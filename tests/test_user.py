@@ -5,39 +5,47 @@ from pwdlib import PasswordHash
 from sqlmodel import Session
 
 from app.repository.models import User
-from app.routes.user import UserRegister
+from app.repository.types import str_to_id
 
 testdata = [
-    ("Albert Einstein", "albert.e@princeton.edu", "PhotoElectric@1905"),
-    ("Walter White", "heisenberg@abqchem.com", "SayMyName!"),
+    ("Albert Einstein", "albert.e@princeton.edu", "PhotoElectric@1905", "+1 650-253-0000"),
+    ("Walter White", "heisenberg@abqchem.com", "SayMyName!", "+91 650-253-0000"),
 ]
 
 
-@pytest.mark.parametrize(["name", "email", "password"], testdata)
-def test_user_creation(name: str, email: str, password: str, client: TestClient, session: Session):
-    user_register = UserRegister(email=email, full_name=name, password=password)
-    resp = client.post("/user/register", json=user_register.model_dump())
+@pytest.mark.parametrize(["name", "email", "password", "mobile_number"], testdata)
+def test_user_creation(name: str, email: str, password: str, mobile_number: str, client: TestClient, session: Session):
+    payload = {
+        "email": email,
+        "full_name": name,
+        "password": password,
+        "mobile_number": mobile_number,
+    }
+    resp = client.post("/user/register", json=payload)
 
     assert resp.status_code == status.HTTP_201_CREATED
     data = resp.json()
 
-    assert data["email"] == user_register.email
+    assert data["email"] == email
 
-    user_db = session.get(User, data["id"])
+    user_db = session.get(User, str_to_id(data["id"]))
 
     assert user_db is not None
-    assert user_db.email == user_register.email
-    assert user_db.full_name == user_register.full_name
+    assert user_db.email == email
+    assert user_db.full_name == name
 
     hasher = PasswordHash.recommended()
-    assert hasher.verify(user_register.password, user_db.hashed_password)
+    assert hasher.verify(password, user_db.hashed_password)
 
 
-@pytest.mark.parametrize(["name", "email", "password"], testdata)
-def test_duplicate_user_via_api(name: str, email: str, password: str, client: TestClient, session: Session):
-    user_register = UserRegister(email=email, full_name=name, password=password)
-    payload = user_register.model_dump()
-
+@pytest.mark.parametrize(["name", "email", "password", "mobile_number"], testdata)
+def test_duplicate_user_via_api(name: str, email: str, password: str, mobile_number: str, client: TestClient):
+    payload = {
+        "email": email,
+        "full_name": name,
+        "password": password,
+        "mobile_number": mobile_number,
+    }
     resp_suc = client.post("/user/register", json=payload)
     assert resp_suc.status_code == status.HTTP_201_CREATED
     data_suc = resp_suc.json()
@@ -46,4 +54,4 @@ def test_duplicate_user_via_api(name: str, email: str, password: str, client: Te
     resp_err = client.post("/user/register", json=payload)
     assert resp_err.status_code == status.HTTP_409_CONFLICT
     data_err = resp_err.json()
-    assert data_err["detail"]["error"] == "duplicate_email"
+    assert data_err["detail"]["error"] == "email_exists"

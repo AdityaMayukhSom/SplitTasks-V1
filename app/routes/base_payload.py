@@ -20,3 +20,8 @@ class BasePayload(BaseModel, ABC):
         arbitrary_types_allowed=False,
         str_strip_whitespace=True,
     )
+
+
+class BaseError(BasePayload):
+    error: str
+    error_description: str

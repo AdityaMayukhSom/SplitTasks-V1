@@ -14,7 +14,7 @@ sys.path.append(os.path.dirname(SCRIPT_DIR))
 
 from app.main import app
 from app.config.vars import JWTVars, get_jwt_vars
-from app.repository.models import get_session
+from app.repository.session import get_session
 
 
 @pytest.fixture(name="session")

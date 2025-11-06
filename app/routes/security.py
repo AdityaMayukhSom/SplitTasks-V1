@@ -9,8 +9,9 @@ from sqlmodel import select, Session
 from starlette.responses import JSONResponse
 
 from app.config.vars import JWTVarsDep, JWTVars
-from app.repository.models import User, SessionDep
-from app.routes.base_payload import BasePayload
+from app.repository.models import User
+from app.repository.session import SessionDep
+from app.routes.base_payload import BasePayload, BaseError
 
 
 def authenticate_user(email: str, password: str, session: Session) -> User:
@@ -30,7 +31,7 @@ def create_access_token(subject: str, jwt_vars: JWTVars) -> str:
     expiry_time = current_time + expiry_delta
     payload = {
         # JWT subject has to be a string
-        "sub": str(subject),
+        "sub": subject,
         "iat": current_time,
         "exp": expiry_time,
         "iss": jwt_vars.issuer,
@@ -49,7 +50,7 @@ class TokenPayload(BasePayload):
     expires_in: int
 
 
-class OAuthError(BasePayload):
+class OAuthError(BaseError):
     error: Literal[
         "invalid_request",
         "invalid_client",
@@ -58,7 +59,6 @@ class OAuthError(BasePayload):
         "unauthorized_client",
         "unsupported_grant_type",
     ]
-    error_description: str
 
 
 security_router = APIRouter()
@@ -105,7 +105,7 @@ async def login_for_access_token(
     )
 
     return JSONResponse(
-        content=payload.model_dump(),
+        content=payload.model_dump(mode="json"),
         status_code=status.HTTP_200_OK,
         headers={"cache-control": "no-store"},
     )
@@ -152,8 +152,7 @@ async def get_current_user(token: OAuth2SchemeDep, jwt_vars: JWTVarsDep, session
             headers={"www-authenticate": "Bearer"},
         )
 
-    user_id = int(jwt_subject)
-    user: User | None = session.get(User, user_id)
+    user: User | None = session.get(User, jwt_subject)
 
     if user is None:
         raise HTTPException(

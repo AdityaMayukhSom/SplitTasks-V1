@@ -2,9 +2,11 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body
 from pydantic import BaseModel
+from pydantic_extra_types.currency_code import Currency
 from starlette.responses import JSONResponse
 
-from app.repository.models import SessionDep, Group
+from app.repository.models import Group
+from app.repository.session import SessionDep
 from app.routes.security import CurrentUserDep
 
 group_router = APIRouter()
@@ -13,7 +15,7 @@ group_router = APIRouter()
 class GroupCreate(BaseModel):
     name: str
     description: str | None = None
-    currency_code: str
+    currency_code: Currency
 
 
 @group_router.post("/create", response_class=JSONResponse)

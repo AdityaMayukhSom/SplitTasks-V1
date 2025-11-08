@@ -4,39 +4,27 @@ from typing import Annotated
 from fastapi import Depends
 from pydantic import EmailStr, HttpUrl
 from pydantic_extra_types.currency_code import Currency
-from pydantic_extra_types.phone_numbers import PhoneNumber
 from sqlalchemy import Engine
-from sqlmodel import (
-    DateTime,
-    Field,
-    Relationship,
-    SQLModel,
-    create_engine,
-    AutoString,
-)
+from sqlmodel import DateTime, Field, Relationship, SQLModel, create_engine, AutoString
 
 from app.config.vars import DBVarsDep
-from app.repository.base_models import (
-    _Id,
-    _CreatedAt,
-    _UpdatedAt,
-    _Enabled
-)
-from app.repository.enums import SplitType, TaskStatus
-from app.repository.types import TypeMoney, TypeDOB, TypeId
+from app.repository.base_models import _Id, _CreatedAt, _UpdatedAt, _Enabled, _Validated
+from app.repository.enums import SplitType, TaskStatus, MembershipStatus
+from app.repository.types import TypeMoney, TypeDOB, TypeId, TypeMobile
 
 
-class Account(_CreatedAt, SQLModel, table=True):
-    user_id: TypeId = Field(foreign_key="user.id", primary_key=True)
-    group_id: TypeId = Field(foreign_key="group.id", primary_key=True)
+class Account(_Id, _CreatedAt, _UpdatedAt, _Enabled, SQLModel, table=True):
+    user_id: TypeId = Field(foreign_key="user.id", index=True)
+    group_id: TypeId = Field(foreign_key="group.id", index=True)
     balance: TypeMoney
+    membership_status: MembershipStatus = Field(default=MembershipStatus.REQUESTED)
 
 
-class User(_Id, _CreatedAt, _UpdatedAt, _Enabled, SQLModel, table=True):
-    full_name: str = Field(min_length=2)
-    email: EmailStr = Field(unique=True, index=True)
-    mobile_number: PhoneNumber = Field(unique=True, index=True)
-    hashed_password: str
+class User(_Validated, _Id, _CreatedAt, _UpdatedAt, _Enabled, SQLModel, table=True):
+    name: str | None = Field(default=None)
+    email: EmailStr | None = Field(unique=True, index=True, nullable=True)
+    mobile: TypeMobile | None = Field(unique=True, index=True, nullable=True)
+    password_hash: str
     dob: TypeDOB
     groups: list["Group"] = Relationship(back_populates="users", link_model=Account)
 
@@ -55,11 +43,11 @@ class User(_Id, _CreatedAt, _UpdatedAt, _Enabled, SQLModel, table=True):
     )
 
 
-class Group(_Id, _CreatedAt, _Enabled, SQLModel, table=True):
+class Group(_Validated, _Id, _CreatedAt, _Enabled, SQLModel, table=True):
     name: str = Field(min_length=1)
     description: str | None = Field(default=None)
     currency: Currency
-    display_image: HttpUrl = Field(sa_type=AutoString)
+    display_image: HttpUrl | None = Field(default=None, sa_type=AutoString)
     creator_id: TypeId = Field(foreign_key="user.id")
     admin_id: TypeId = Field(foreign_key="user.id")
     can_users_invite: bool = Field(default=False)

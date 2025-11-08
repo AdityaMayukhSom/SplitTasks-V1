@@ -7,51 +7,153 @@ from sqlmodel import Session
 from app.repository.models import User
 from app.repository.types import str_to_id
 
-testdata = [
-    ("Albert Einstein", "albert.e@princeton.edu", "PhotoElectric@1905", "+1 650-253-0000"),
-    ("Walter White", "heisenberg@abqchem.com", "SayMyName!", "+91 650-253-0000"),
-]
 
-
-@pytest.mark.parametrize(["name", "email", "password", "mobile_number"], testdata)
-def test_user_creation(name: str, email: str, password: str, mobile_number: str, client: TestClient, session: Session):
+def test_create_user_with_name_and_password(client: TestClient):
+    # The expected value is 422, not 400 as this is not only a bad request,
+    # but the payload is not processable by the backend, hence 422 is expected.
     payload = {
-        "email": email,
-        "full_name": name,
-        "password": password,
-        "mobile_number": mobile_number,
+        "name": "Walter White",
+        "password": "ABCD123456",
     }
     resp = client.post("/user/register", json=payload)
+    assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
+
+def test_create_user_with_name_only(client: TestClient):
+    payload = {"name": "Walter White"}
+    resp = client.post("/user/register", json=payload)
+    assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+def test_create_user_with_password_only(client: TestClient):
+    payload = {"password": "ABCD1234"}
+    resp = client.post("/user/register", json=payload)
+    assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+def test_create_user_with_email_only(client: TestClient):
+    payload = {"email": "elon.musk@tesla.com"}
+    resp = client.post("/user/register", json=payload)
+    assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+def test_create_user_with_mobile_only(client: TestClient):
+    payload = {"mobile": "+91 98432 69621"}
+    resp = client.post("/user/register", json=payload)
+    assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+@pytest.mark.parametrize("email", ("heisenberg1234", "abc@@world.org", "7890"))
+def test_create_user_with_email_invalid(email: str, client: TestClient):
+    payload = {"email": email, "password": "secret-password@123"}
+    resp = client.post("/user/register", json=payload)
+    assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+@pytest.mark.parametrize("mobile", ("heisenberg1234", "abc@@world.org", "7890"))
+def test_create_user_with_mobile_invalid(mobile: str, client: TestClient):
+    payload = {"mobile": mobile, "password": "changeit@9876"}
+    resp = client.post("/user/register", json=payload)
+    assert resp.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+def test_create_user_with_name_email_mobile(client: TestClient, session: Session):
+    payload = {
+        "email": "heisenberg@chemistry.org",
+        "name": "Walter White",
+        "password": "SayMyName!72",
+        "mobile": "+91 65025 30000",
+    }
+    resp = client.post("/user/register", json=payload)
     assert resp.status_code == status.HTTP_201_CREATED
     data = resp.json()
-
-    assert data["email"] == email
 
     user_db = session.get(User, str_to_id(data["id"]))
 
     assert user_db is not None
-    assert user_db.email == email
-    assert user_db.full_name == name
+    assert user_db.email == payload["email"]
+    assert user_db.name == payload["name"]
+    assert user_db.mobile == payload["mobile"]
 
     hasher = PasswordHash.recommended()
-    assert hasher.verify(password, user_db.hashed_password)
+    assert hasher.verify("SayMyName!72", user_db.password_hash)
 
 
-@pytest.mark.parametrize(["name", "email", "password", "mobile_number"], testdata)
-def test_duplicate_user_via_api(name: str, email: str, password: str, mobile_number: str, client: TestClient):
+def test_create_user_with_email_mobile(client: TestClient, session: Session):
     payload = {
-        "email": email,
-        "full_name": name,
-        "password": password,
-        "mobile_number": mobile_number,
+        "email": "heisenberg@chemistry.org",
+        "password": "SayMyName!72",
+        "mobile": "+91 65025 30000",
+    }
+    resp = client.post("/user/register", json=payload)
+    assert resp.status_code == status.HTTP_201_CREATED
+    data = resp.json()
+
+    user_db = session.get(User, str_to_id(data["id"]))
+
+    assert user_db is not None
+    assert user_db.email == payload["email"]
+    assert user_db.name is None
+    assert user_db.mobile == payload["mobile"]
+
+
+def test_create_user_with_mobile_valid(client: TestClient, session: Session):
+    payload = {
+        "mobile": "+353 21 234 5678",
+        "password": "SayMyName!72",
+    }
+    resp = client.post("/user/register", json=payload)
+    assert resp.status_code == status.HTTP_201_CREATED
+    data = resp.json()
+
+    user_db = session.get(User, str_to_id(data["id"]))
+
+    assert user_db is not None
+    assert user_db.email is None
+    assert user_db.name is None
+    assert user_db.mobile == payload["mobile"]
+
+
+def test_create_user_with_email_valid(client: TestClient, session: Session):
+    payload = {
+        "email": "heisenberg@chemistry.org",
+        "password": "SayMyName!72",
+    }
+    resp = client.post("/user/register", json=payload)
+    assert resp.status_code == status.HTTP_201_CREATED
+    data = resp.json()
+
+    user_db = session.get(User, str_to_id(data["id"]))
+
+    assert user_db is not None
+    assert user_db.email == payload["email"]
+    assert user_db.name is None
+    assert user_db.mobile is None
+
+
+def test_duplicate_user_create(session: Session, client: TestClient):
+    payload = {
+        "name": "Walter White",
+        "email": "heisenberg@chemistry.org",
+        "password": "SayMyName!72",
+        "mobile": "+91 65025 30000",
     }
     resp_suc = client.post("/user/register", json=payload)
     assert resp_suc.status_code == status.HTTP_201_CREATED
-    data_suc = resp_suc.json()
-    assert data_suc["email"] == email
 
     resp_err = client.post("/user/register", json=payload)
     assert resp_err.status_code == status.HTTP_409_CONFLICT
     data_err = resp_err.json()
-    assert data_err["detail"]["error"] == "email_exists"
+    assert data_err["detail"]["error"] == "username_exists"
+
+    payload["email"] = "new_email_same_mobile@abc.com"
+
+    resp_err = client.post("/user/register", json=payload)
+    assert resp_err.status_code == status.HTTP_409_CONFLICT
+    data_err = resp_err.json()
+    assert data_err["detail"]["error"] == "username_exists"
+
+    payload["mobile"] = "+91 45647 69000"
+
+    resp_suc = client.post("/user/register", json=payload)
+    assert resp_suc.status_code == status.HTTP_201_CREATED

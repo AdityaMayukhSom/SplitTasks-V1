@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.repository.session import create_db_and_tables
+from app.routes.group import group_router
 from app.routes.security import security_router
 from app.routes.user import user_router
 
@@ -21,4 +22,5 @@ app = FastAPI(
 )
 app.mount("/static", StaticFiles(directory="public"))
 app.include_router(user_router, prefix="/user")
+app.include_router(group_router, prefix="/group")
 app.include_router(security_router)

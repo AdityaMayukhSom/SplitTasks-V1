@@ -27,6 +27,8 @@ def session_fixture():
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
         yield session
+    session.close()
+    engine.dispose()
 
 
 @pytest.fixture(name="jwt_vars")

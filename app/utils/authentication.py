@@ -1,0 +1,133 @@
+import logging
+from typing import Optional, Literal
+
+import email_validator
+import phonenumbers
+from phonenumbers.phonenumberutil import is_valid_number
+from pwdlib import PasswordHash
+from sqlmodel import select, Session, col
+
+from app.repository.models import User
+
+_UsernameArgType = Literal["unknown", "email", "mobile"]
+
+
+class MobileNotValidError(Exception):
+    pass
+
+
+def get_validated_username[T = str](username: T, *, username_type: _UsernameArgType = "unknown") -> T:
+    if username is None:
+        return username
+
+    if not isinstance(username, str):
+        raise ValueError("username must be a subclass of string")
+
+    # always store usernames (especially emails) in lower case so that duplicates
+    # that only differ in case throws not unique error when storing in database
+    # although the local part of the email can be case-sensitive, no widely used
+    # email provider uses case-sensitive comparison for local part, so use lower case
+    # https://stackoverflow.com/questions/9807909/are-email-addresses-case-sensitive
+    username = username.strip().lower()
+    if len(username) == 0:
+        raise ValueError('username cannot be empty')
+
+    if username_type == 'unknown':
+        username_type = 'email' if username.find("@") != -1 else 'mobile'
+
+    if username_type == 'email':
+        email_obj = email_validator.validate_email(username)
+        return email_obj.normalized
+    else:
+        mobile_obj = phonenumbers.parse(username, 'IN')
+        if not is_valid_number(mobile_obj):
+            raise MobileNotValidError("given mobile is not valid")
+        mobile_norm = str(phonenumbers.format_number(mobile_obj, phonenumbers.PhoneNumberFormat.INTERNATIONAL))
+        return mobile_norm
+
+
+def store_user(
+        session: Session,
+        *,
+        username: Optional[str] = None,
+        name: Optional[str] = None,
+        email: Optional[str] = None,
+        mobile: Optional[str] = None,
+        password: str,
+        enabled: bool = True,
+) -> User:
+    """
+    Creates and stores a new user record.
+
+    The primary identifier (username, email, or mobile) must be provided
+    in a mutually exclusive fashion to avoid ambiguity.
+
+    :param session: The database session.
+    :param username: The primary identifier (email or mobile number). If provided,
+                     'email' and 'mobile' kwargs must be None.
+    :param name: The user's full name.
+    :param email: The user's email address. Must be None if 'username' is provided.
+    :param mobile: The user's mobile number. Must be None if 'username' is provided.
+    :param password: The plain-text password to be hashed and stored.
+    :param enabled: Initial active status of the user account. Defaults to True.
+    :raises ValueError: If multiple conflicting identifier parameters (username
+                        combined with email/mobile) are provided.
+    :return: The newly created User object.
+    """
+
+    if username is None and email is None and mobile is None:
+        raise ValueError("username, email and mobile cannot be None together")
+
+    if username is not None and (email is not None or mobile is not None):
+        raise ValueError("either pass username or use email and mobile as kwargs")
+
+    # It is possible that mobile which does not contain @ symbol is still an invalid one,
+    # This is_mobile check is done for very basic segregation purpose, the mobile number
+    # will be validated in the get_validated_username function which is called before storing
+    # the user into the database, thus we make sure that no invalid email or mobile number
+    # is stored into the database.
+    username_is_mobile = username is not None and username.find("@") == -1
+    username_is_email = username is not None and username.find("@") != -1
+
+    if username_is_email and email is None:
+        # here email is None before assignment
+        logging.info("username provided, contains `at` symbol and email not provided")
+        email = username
+
+    if username_is_mobile and mobile is None:
+        # here mobile is None before assignment
+        logging.info("username provided, does not contains `at` symbol and mobile not provided")
+        mobile = username
+
+    hasher = PasswordHash.recommended()
+
+    user_db = User(
+        name=name,
+        email=get_validated_username(email, username_type='email'),
+        mobile=get_validated_username(mobile, username_type="mobile"),
+        password_hash=hasher.hash(password),
+        enabled=enabled,
+    )
+    session.add(user_db)
+    session.commit()
+    session.refresh(user_db)
+
+    return user_db
+
+
+def authenticate_user(username: str, password: str, session: Session) -> User:
+    username_parsed = get_validated_username(username)
+    if username.find("@") != -1:
+        logging.info("trying to authenticate using email")
+        user_stmt = select(User).where(col(User.email) == username_parsed)
+    else:
+        logging.info("trying to authenticate using mobile")
+        user_stmt = select(User).where(col(User.mobile) == username_parsed)
+
+    user = session.exec(user_stmt).one_or_none()
+    if user is None:
+        raise Exception("no user exists with given username", username)
+    hasher = PasswordHash.recommended()
+    if not hasher.verify(password, user.password_hash):
+        raise Exception("invalid password provided")
+    return user

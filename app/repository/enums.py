@@ -19,3 +19,12 @@ class TaskStatus(str, Enum):
     DECLINED = "Declined"
     FINISHED = "Finished"
     PENDING = "Pending"
+
+
+class MembershipStatus(str, Enum):
+    REQUESTED = "Requested"
+    CANCELLED = "Cancelled"
+    DECLINED = "Declined"
+    ACCEPTED = "Accepted"
+    EXITED = "Exited"
+    REMOVED = "Removed"

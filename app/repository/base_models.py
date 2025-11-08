@@ -2,10 +2,18 @@ import uuid
 from abc import ABC
 from datetime import datetime
 
+from pydantic import ConfigDict
 from sqlalchemy import text
 from sqlmodel import DateTime, Field, func
 
 from app.repository.types import TypeId
+
+
+class _Validated(ABC):
+    model_config = ConfigDict(
+        validate_assignment=True,
+        validate_default=True,
+    )
 
 
 class _Id(ABC):

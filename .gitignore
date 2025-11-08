@@ -20,3 +20,10 @@ scripts/temp.sql
 .vscode
 .idea
 
+# Unit test / coverage reports
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+htmlcov

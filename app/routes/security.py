@@ -4,41 +4,15 @@ from typing import Annotated, Literal
 import jwt
 from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from pwdlib import PasswordHash
-from sqlmodel import select, Session
 from starlette.responses import JSONResponse
 
-from app.config.vars import JWTVarsDep, JWTVars
+from app.config.vars import JWTVars
+from app.config.vars import JWTVarsDep
 from app.repository.models import User
 from app.repository.session import SessionDep
+from app.repository.types import str_to_id, id_to_str
 from app.routes.base_payload import BasePayload, BaseError
-
-
-def authenticate_user(email: str, password: str, session: Session) -> User:
-    user_stmt = select(User).where(User.email == email)
-    user = session.exec(user_stmt).one_or_none()
-    if user is None:
-        raise Exception("no user exists with given email", email)
-    hasher = PasswordHash.recommended()
-    if not hasher.verify(password, user.hashed_password):
-        raise Exception("invalid password provided")
-    return user
-
-
-def create_access_token(subject: str, jwt_vars: JWTVars) -> str:
-    current_time = datetime.now(tz=timezone.utc)
-    expiry_delta = timedelta(minutes=jwt_vars.expiry_minutes)
-    expiry_time = current_time + expiry_delta
-    payload = {
-        # JWT subject has to be a string
-        "sub": subject,
-        "iat": current_time,
-        "exp": expiry_time,
-        "iss": jwt_vars.issuer,
-    }
-    encoded_jwt = jwt.encode(payload, jwt_vars.secret_key, algorithm=jwt_vars.signing_algo)
-    return encoded_jwt
-
+from app.utils.authentication import authenticate_user
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 OAuth2SchemeDep = Annotated[OAuth2PasswordBearer, Depends(oauth2_scheme)]
@@ -64,6 +38,21 @@ class OAuthError(BaseError):
 security_router = APIRouter()
 
 
+def create_access_token(subject: str, jwt_vars: JWTVars) -> str:
+    current_time = datetime.now(tz=timezone.utc)
+    expiry_delta = timedelta(minutes=jwt_vars.expiry_minutes)
+    expiry_time = current_time + expiry_delta
+    payload = {
+        # JWT subject has to be a string
+        "sub": subject,
+        "iat": current_time,
+        "exp": expiry_time,
+        "iss": jwt_vars.issuer,
+    }
+    encoded_jwt = jwt.encode(payload, jwt_vars.secret_key, algorithm=jwt_vars.signing_algo)
+    return encoded_jwt
+
+
 @security_router.post(
     "/token",
     response_model=TokenPayload,
@@ -71,10 +60,10 @@ security_router = APIRouter()
     tags=["security"],
     description="if the user account is disabled, no access token will be granted.",
 )
-async def login_for_access_token(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    session: SessionDep,
-    jwt_vars: JWTVarsDep,
+def login_for_access_token(
+        form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+        session: SessionDep,
+        jwt_vars: JWTVarsDep,
 ):
     try:
         user = authenticate_user(form_data.username, form_data.password, session)
@@ -96,7 +85,7 @@ async def login_for_access_token(
             ).model_dump(),
         )
 
-    access_token = create_access_token(str(user.id), jwt_vars)
+    access_token = create_access_token(id_to_str(user.id), jwt_vars)
 
     payload = TokenPayload(
         access_token=access_token,
@@ -111,7 +100,7 @@ async def login_for_access_token(
     )
 
 
-async def get_current_user(token: OAuth2SchemeDep, jwt_vars: JWTVarsDep, session: SessionDep):
+def get_current_user(token: OAuth2SchemeDep, jwt_vars: JWTVarsDep, session: SessionDep):
     try:
         payload: dict = jwt.decode(
             token,
@@ -152,7 +141,7 @@ async def get_current_user(token: OAuth2SchemeDep, jwt_vars: JWTVarsDep, session
             headers={"www-authenticate": "Bearer"},
         )
 
-    user: User | None = session.get(User, jwt_subject)
+    user: User | None = session.get(User, str_to_id(jwt_subject))
 
     if user is None:
         raise HTTPException(

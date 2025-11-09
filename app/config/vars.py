@@ -45,7 +45,7 @@ class JWTVars(EnvVars):
     signing_algo: str = Field(alias="JWT_SIGNING_ALGO", default="HS256")
     secret_key: str = Field(alias="JWT_SECRET_KEY", default="please-change-this-secret")
     expiry_minutes: int = Field(alias="JWT_EXPIRY_MINUTES", default=10)
-    issuer: str = Field(alias='JWT_ISSUER', default="")
+    issuer: str = Field(alias="JWT_ISSUER", default="")
     # audience: str = Field(alias="JWT_AUDIENCE", default="")
 
 

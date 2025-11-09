@@ -1,21 +1,20 @@
-from datetime import timedelta, timezone, datetime
-from typing import Annotated, Literal
+from datetime import datetime, timedelta, timezone
+from typing import Annotated, Any, Literal
 
 import jwt
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from starlette.responses import JSONResponse
 
-from app.config.vars import JWTVars
-from app.config.vars import JWTVarsDep
+from app.config.vars import JWTVars, JWTVarsDep
 from app.repository.models import User
 from app.repository.session import SessionDep
-from app.repository.types import str_to_id, id_to_str
-from app.routes.base_payload import BasePayload, BaseError
+from app.repository.types import id_to_str, str_to_id
+from app.routes.base_payload import BaseError, BasePayload
 from app.utils.authentication import authenticate_user
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-OAuth2SchemeDep = Annotated[OAuth2PasswordBearer, Depends(oauth2_scheme)]
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=True)
+OAuth2SchemeDep = Annotated[str, Depends(oauth2_scheme)]
 
 
 class TokenPayload(BasePayload):
@@ -24,15 +23,19 @@ class TokenPayload(BasePayload):
     expires_in: int
 
 
-class OAuthError(BaseError):
-    error: Literal[
-        "invalid_request",
-        "invalid_client",
-        "invalid_grant",
-        "invalid_scope",
-        "unauthorized_client",
-        "unsupported_grant_type",
+class OAuthError(
+    BaseError[
+        Literal[
+            "invalid_request",
+            "invalid_client",
+            "invalid_grant",
+            "invalid_scope",
+            "unauthorized_client",
+            "unsupported_grant_type",
+        ]
     ]
+):
+    pass
 
 
 security_router = APIRouter()
@@ -61,9 +64,9 @@ def create_access_token(subject: str, jwt_vars: JWTVars) -> str:
     description="if the user account is disabled, no access token will be granted.",
 )
 def login_for_access_token(
-        form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-        session: SessionDep,
-        jwt_vars: JWTVarsDep,
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    session: SessionDep,
+    jwt_vars: JWTVarsDep,
 ):
     try:
         user = authenticate_user(form_data.username, form_data.password, session)
@@ -102,7 +105,7 @@ def login_for_access_token(
 
 def get_current_user(token: OAuth2SchemeDep, jwt_vars: JWTVarsDep, session: SessionDep):
     try:
-        payload: dict = jwt.decode(
+        payload: dict[str, Any] = jwt.decode(
             token,
             key=jwt_vars.secret_key,
             algorithms=[jwt_vars.signing_algo],

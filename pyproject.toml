@@ -37,5 +37,5 @@ line-length = 120
 plugins = ['pydantic.mypy']
 
 [tool.pytest.ini_options]
-addopts = "-s -vv --cov=. --cov-report=html"
+addopts = "-s --cov=app"
 

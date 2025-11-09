@@ -1,11 +1,11 @@
 import logging
-from typing import Optional, Literal
+from typing import Literal
 
 import email_validator
 import phonenumbers
 from phonenumbers.phonenumberutil import is_valid_number
 from pwdlib import PasswordHash
-from sqlmodel import select, Session, col
+from sqlmodel import Session, col, select
 
 from app.repository.models import User
 
@@ -16,30 +16,27 @@ class MobileNotValidError(Exception):
     pass
 
 
-def get_validated_username[T = str](username: T, *, username_type: _UsernameArgType = "unknown") -> T:
+def get_validated_username(username: str | None, *, username_type: _UsernameArgType = "unknown") -> str | None:
     if username is None:
         return username
-
-    if not isinstance(username, str):
-        raise ValueError("username must be a subclass of string")
 
     # always store usernames (especially emails) in lower case so that duplicates
     # that only differ in case throws not unique error when storing in database
     # although the local part of the email can be case-sensitive, no widely used
     # email provider uses case-sensitive comparison for local part, so use lower case
     # https://stackoverflow.com/questions/9807909/are-email-addresses-case-sensitive
-    username = username.strip().lower()
-    if len(username) == 0:
-        raise ValueError('username cannot be empty')
+    username_lower = username.strip().lower()
+    if len(username_lower) == 0:
+        raise ValueError("username cannot be empty")
 
-    if username_type == 'unknown':
-        username_type = 'email' if username.find("@") != -1 else 'mobile'
+    if username_type == "unknown":
+        username_type = "email" if username_lower.find("@") != -1 else "mobile"
 
-    if username_type == 'email':
-        email_obj = email_validator.validate_email(username)
+    if username_type == "email":
+        email_obj = email_validator.validate_email(username_lower)
         return email_obj.normalized
     else:
-        mobile_obj = phonenumbers.parse(username, 'IN')
+        mobile_obj = phonenumbers.parse(username_lower, "IN")
         if not is_valid_number(mobile_obj):
             raise MobileNotValidError("given mobile is not valid")
         mobile_norm = str(phonenumbers.format_number(mobile_obj, phonenumbers.PhoneNumberFormat.INTERNATIONAL))
@@ -47,14 +44,14 @@ def get_validated_username[T = str](username: T, *, username_type: _UsernameArgT
 
 
 def store_user(
-        session: Session,
-        *,
-        username: Optional[str] = None,
-        name: Optional[str] = None,
-        email: Optional[str] = None,
-        mobile: Optional[str] = None,
-        password: str,
-        enabled: bool = True,
+    session: Session,
+    *,
+    username: str | None = None,
+    name: str | None = None,
+    email: str | None = None,
+    mobile: str | None = None,
+    password: str,
+    enabled: bool = True,
 ) -> User:
     """
     Creates and stores a new user record.
@@ -103,7 +100,7 @@ def store_user(
 
     user_db = User(
         name=name,
-        email=get_validated_username(email, username_type='email'),
+        email=get_validated_username(email, username_type="email"),
         mobile=get_validated_username(mobile, username_type="mobile"),
         password_hash=hasher.hash(password),
         enabled=enabled,

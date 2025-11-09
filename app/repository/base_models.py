@@ -2,25 +2,31 @@ import uuid
 from abc import ABC
 from datetime import datetime
 
-from pydantic import ConfigDict
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import text
-from sqlmodel import DateTime, Field, func
+from sqlmodel import (
+    DateTime,
+    Field,  # type: ignore
+    SQLModel,
+    func,
+)
 
 from app.repository.types import TypeId
 
 
-class _Validated(ABC):
+class Validated(ABC, BaseModel):
     model_config = ConfigDict(
+        extra="forbid",
         validate_assignment=True,
         validate_default=True,
     )
 
 
-class _Id(ABC):
+class Id(ABC, SQLModel):
     id: TypeId = Field(primary_key=True, default_factory=uuid.uuid7)
 
 
-class _CreatedAt(ABC):
+class CreatedAt(ABC, SQLModel):
     created_at: datetime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
@@ -29,7 +35,7 @@ class _CreatedAt(ABC):
     )
 
 
-class _UpdatedAt(ABC):
+class UpdatedAt(ABC, SQLModel):
     updated_at: datetime | None = Field(
         default=None,
         nullable=False,
@@ -38,7 +44,7 @@ class _UpdatedAt(ABC):
     )
 
 
-class _Enabled(ABC):
+class Enabled(ABC, SQLModel):
     enabled: bool = Field(
         default=True,
         nullable=False,

@@ -1,15 +1,15 @@
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, status, Body
+from fastapi import APIRouter, Body, status
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import EmailStr, SecretStr, StringConstraints, Field, model_validator
-from sqlmodel import or_, col, and_, select
+from pydantic import EmailStr, Field, SecretStr, StringConstraints, model_validator
+from sqlmodel import and_, col, or_, select
 
 from app.repository.models import User
 from app.repository.session import SessionDep
 from app.repository.types import TypeId, TypeMobile
-from app.routes.base_payload import BasePayload, BaseError
+from app.routes.base_payload import BaseError, BasePayload
 from app.utils.authentication import store_user
 
 user_router = APIRouter()
@@ -34,8 +34,17 @@ class UserIdentifier(BasePayload):
     id: TypeId
 
 
-class UserExistsError(BaseError):
-    error: Literal["username_exists", "email_exists", "mobile_number_exists", "no_username_field"]
+class UserExistsError(
+    BaseError[
+        Literal[
+            "username_exists",
+            "email_exists",
+            "mobile_number_exists",
+            "no_username_field",
+        ]
+    ]
+):
+    pass
 
 
 @user_router.post("/register", response_class=JSONResponse, response_model=UserIdentifier, tags=["user"])

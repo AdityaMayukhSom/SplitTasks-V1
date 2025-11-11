@@ -22,7 +22,7 @@ testdata = (
 
 @pytest.mark.parametrize("username,password", testdata)
 def test_security_token_generation(
-        username: str, password: str, client: TestClient, session: Session, jwt_vars: JWTVars
+    username: str, password: str, client: TestClient, session: Session, jwt_vars: JWTVars
 ):
     user_db = store_user(session, username=username, password=password)
 
@@ -53,7 +53,7 @@ def test_security_token_generation(
 
 @pytest.mark.parametrize("username,password", testdata)
 def test_security_user_does_not_exist(
-        username: str, password: str, client: TestClient, session: Session, jwt_vars: JWTVars
+    username: str, password: str, client: TestClient, session: Session, jwt_vars: JWTVars
 ):
     payload = {"username": username, "password": password}
     resp = client.post("/token", data=payload, headers=auth_form_headers)
@@ -62,7 +62,7 @@ def test_security_user_does_not_exist(
 
 @pytest.mark.parametrize("username,password", testdata)
 def test_security_user_exists_wrong_password(
-        username: str, password: str, client: TestClient, session: Session, jwt_vars: JWTVars
+    username: str, password: str, client: TestClient, session: Session, jwt_vars: JWTVars
 ):
     store_user(session, username=username, password=password)
     payload = {"username": username, "password": "wrong-password-1234"}
@@ -72,7 +72,7 @@ def test_security_user_exists_wrong_password(
 
 @pytest.mark.parametrize("username,password", testdata)
 def test_security_user_exists_disabled(
-        username: str, password: str, client: TestClient, session: Session, jwt_vars: JWTVars
+    username: str, password: str, client: TestClient, session: Session, jwt_vars: JWTVars
 ):
     store_user(session, username=username, password=password, enabled=False)
     payload = {"username": username, "password": password}

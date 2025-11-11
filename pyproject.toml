@@ -15,18 +15,17 @@ dependencies = [
     "pydantic-settings>=2.11.0",
     "pyjwt[crypto]>=2.10.1",
     "sqlmodel>=0.0.27",
+    "typing-extensions>=4.15.0",
 ]
-authors = [
-    { name = 'Aditya Mayukh Som', email = "aditya.m.som@axantial.com" }
-]
+authors = [{ name = 'Aditya Mayukh Som', email = "aditya.m.som@axantial.com" }]
 maintainers = [
     { name = 'Aditya Mayukh Som', email = "aditya.m.som@axantial.com" },
 ]
 
 [dependency-groups]
 dev = [
-    "black>=25.9.0",
-    "pip>=25.3",
+    "mypy>=1.18.2",
+    "mypy-extensions>=1.1.0",
     "pytest>=8.4.2",
 ]
 
@@ -39,3 +38,5 @@ plugins = ['pydantic.mypy']
 [tool.pytest.ini_options]
 addopts = "-s --cov=app"
 
+[tool.ruff]
+line-length = 120

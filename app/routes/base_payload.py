@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import TypeVar
+
 
 from pydantic import BaseModel, ConfigDict, AliasGenerator
 from pydantic.alias_generators import to_snake
@@ -20,12 +20,5 @@ class BasePayload(BaseModel, ABC):
         validate_default=True,
         arbitrary_types_allowed=False,
         str_strip_whitespace=True,
+        use_enum_values=True,
     )
-
-
-T = TypeVar("T", bound=str, default=str)
-
-
-class BaseError[T](BasePayload):
-    error: T
-    error_description: str

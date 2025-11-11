@@ -1,30 +1,30 @@
-from enum import Enum
+from enum import StrEnum, auto
 
 
-class PaymentStatus(str, Enum):
-    CANCELLED = "Cancelled"
-    DECLINED = "Declined"
-    REQUESTED = "Requested"
-    SETTLED = "Settled"
+class PaymentStatus(StrEnum):
+    CANCELLED = auto()
+    DECLINED = auto()
+    REQUESTED = auto()
+    SETTLED = auto()
 
 
-class SplitType(str, Enum):
-    EQUAL = "Equal"
-    EXACT = "Exact"
-    PERCENTAGE = "Percentage"
+class SplitType(StrEnum):
+    EQUAL = auto()
+    EXACT = auto()
+    PERCENTAGE = auto()
 
 
-class TaskStatus(str, Enum):
-    CANCELLED = "Cancelled"
-    DECLINED = "Declined"
-    FINISHED = "Finished"
-    PENDING = "Pending"
+class TaskStatus(StrEnum):
+    CANCELLED = auto()
+    DECLINED = auto()
+    FINISHED = auto()
+    PENDING = auto()
 
 
-class MembershipStatus(str, Enum):
-    REQUESTED = "Requested"
-    CANCELLED = "Cancelled"
-    DECLINED = "Declined"
-    ACCEPTED = "Accepted"
-    EXITED = "Exited"
-    REMOVED = "Removed"
+class MembershipStatus(StrEnum):
+    REQUESTED = auto()
+    CANCELLED = auto()
+    DECLINED = auto()
+    ACCEPTED = auto()
+    EXITED = auto()
+    REMOVED = auto()

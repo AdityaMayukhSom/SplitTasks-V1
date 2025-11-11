@@ -8,9 +8,7 @@ from sqlmodel import (
     DateTime,
     Field,  # type: ignore
     SQLModel,
-    func,
 )
-
 from app.repository.types import TypeId
 
 
@@ -30,7 +28,7 @@ class CreatedAt(ABC, SQLModel):
     created_at: datetime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
-        sa_column_kwargs={"server_default": func.now()},
+        sa_column_kwargs={"server_default": text("NOW()")},
         nullable=False,
     )
 
@@ -40,7 +38,7 @@ class UpdatedAt(ABC, SQLModel):
         default=None,
         nullable=False,
         sa_type=DateTime(timezone=True),
-        sa_column_kwargs={"server_default": func.now(), "onupdate": lambda: func.now()},
+        sa_column_kwargs={"server_default": text("NOW()"), "onupdate": text("NOW()")},
     )
 
 

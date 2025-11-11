@@ -1,22 +1,31 @@
 import logging
 from typing import Literal
 
-import email_validator
-import phonenumbers
+from email_validator import validate_email
+from phonenumbers import PhoneNumberFormat, format_number, parse as pn_parse
 from phonenumbers.phonenumberutil import is_valid_number
 from pwdlib import PasswordHash
 from sqlmodel import Session, col, select
 
 from app.repository.models import User
 
-_UsernameArgType = Literal["unknown", "email", "mobile"]
-
 
 class MobileNotValidError(Exception):
     pass
 
 
-def get_validated_username(username: str | None, *, username_type: _UsernameArgType = "unknown") -> str | None:
+class UserDoesNotExistError(Exception):
+    pass
+
+
+class InvalidPasswordError(Exception):
+    pass
+
+
+UsernameType = Literal["unknown", "email", "mobile"]
+
+
+def get_validated_username(username: str | None, *, username_type: UsernameType = "unknown") -> str | None:
     if username is None:
         return username
 
@@ -25,7 +34,7 @@ def get_validated_username(username: str | None, *, username_type: _UsernameArgT
     # although the local part of the email can be case-sensitive, no widely used
     # email provider uses case-sensitive comparison for local part, so use lower case
     # https://stackoverflow.com/questions/9807909/are-email-addresses-case-sensitive
-    username_lower = username.strip().lower()
+    username_lower: str = username.strip().lower()
     if len(username_lower) == 0:
         raise ValueError("username cannot be empty")
 
@@ -33,13 +42,13 @@ def get_validated_username(username: str | None, *, username_type: _UsernameArgT
         username_type = "email" if username_lower.find("@") != -1 else "mobile"
 
     if username_type == "email":
-        email_obj = email_validator.validate_email(username_lower)
+        email_obj = validate_email(username_lower)
         return email_obj.normalized
     else:
-        mobile_obj = phonenumbers.parse(username_lower, "IN")
+        mobile_obj = pn_parse(username_lower, "IN")
         if not is_valid_number(mobile_obj):
             raise MobileNotValidError("given mobile is not valid")
-        mobile_norm = str(phonenumbers.format_number(mobile_obj, phonenumbers.PhoneNumberFormat.INTERNATIONAL))
+        mobile_norm = str(format_number(mobile_obj, PhoneNumberFormat.INTERNATIONAL))
         return mobile_norm
 
 
@@ -123,8 +132,8 @@ def authenticate_user(username: str, password: str, session: Session) -> User:
 
     user = session.exec(user_stmt).one_or_none()
     if user is None:
-        raise Exception("no user exists with given username", username)
+        raise UserDoesNotExistError("no user exists with given username", username)
     hasher = PasswordHash.recommended()
     if not hasher.verify(password, user.password_hash):
-        raise Exception("invalid password provided")
+        raise InvalidPasswordError("invalid password provided")
     return user

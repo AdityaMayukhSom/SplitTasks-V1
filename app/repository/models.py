@@ -2,9 +2,9 @@ from datetime import date, datetime
 from typing import Annotated
 
 from fastapi import Depends
-from pydantic import EmailStr, HttpUrl
+from pydantic import EmailStr, HttpUrl, model_validator
 from pydantic_extra_types.currency_code import Currency
-from sqlalchemy import Engine
+from sqlalchemy import Engine, text
 from sqlmodel import (
     AutoString,
     Date,
@@ -25,18 +25,20 @@ class Account(Id, CreatedAt, UpdatedAt, Enabled, SQLModel, table=True):
     user_id: TypeId = Field(foreign_key="user.id", index=True)
     group_id: TypeId = Field(foreign_key="group.id", index=True)
     balance: TypeMoney
-    membership_status: MembershipStatus = Field(default=MembershipStatus.REQUESTED)
+    membership_status: MembershipStatus = MembershipStatus.REQUESTED
     user: "User" = Relationship(back_populates="accounts")
     group: "Group" = Relationship(back_populates="accounts")
 
 
 class User(Validated, Id, CreatedAt, UpdatedAt, Enabled, SQLModel, table=True):
-    name: str | None = Field(default=None)
-    email: EmailStr | None = Field(unique=True, index=True, nullable=True)
-    mobile: TypeMobile | None = Field(unique=True, index=True, nullable=True)
+    name: str | None = Field(default=None, max_length=72, nullable=True)
+    email: EmailStr | None = Field(unique=True, index=True, default=None, max_length=255, nullable=True)
+    mobile: TypeMobile | None = Field(unique=True, index=True, default=None, max_length=30, nullable=True)
     password_hash: str
-    dob: date | None = Field(default=None, nullable=True, sa_type=Date())
+    dob: date | None = Field(sa_type=Date(), default=None, nullable=True)
     accounts: list[Account] = Relationship(back_populates="user")
+    display_image: HttpUrl | None = Field(sa_type=AutoString, default=None, nullable=True)
+    gender: str | None = Field(default=None, max_length=16, nullable=True)
 
     assigned_tasks: list["Task"] = Relationship(
         back_populates="assigner",
@@ -48,19 +50,27 @@ class User(Validated, Id, CreatedAt, UpdatedAt, Enabled, SQLModel, table=True):
         sa_relationship_kwargs={"foreign_keys": "Task.assignee_id"},
     )
 
+    @model_validator(mode="after")
+    def _has_username(self):
+        if self.email is None and self.mobile is None:
+            raise ValueError("both email and mobile number cannot be missing")
+        return self
+
     def is_member(self, group_id: TypeId) -> bool:
         return any(group_id == a.group_id for a in self.accounts if a.membership_status == MembershipStatus.ACCEPTED)
 
 
 class Group(Validated, Id, CreatedAt, Enabled, SQLModel, table=True):
-    name: str = Field(min_length=1)
-    description: str | None = Field(default=None)
+    name: str = Field(min_length=1, max_length=255)
+    description: str | None = Field(default=None, nullable=True)
     currency: Currency
-    display_image: HttpUrl | None = Field(default=None, sa_type=AutoString)
+    # using annotated with field and sa_type doesn't link HttpUrl to AutoString
+    # type in database, so we need to assign Field here, this is special case
+    display_image: HttpUrl | None = Field(sa_type=AutoString, default=None, nullable=True)
     creator_id: TypeId = Field(foreign_key="user.id")
     admin_id: TypeId = Field(foreign_key="user.id")
-    can_users_invite: bool = Field(default=False)
-    can_users_edit_info: bool = Field(default=False)
+    can_users_invite: bool = Field(default=False, sa_column_kwargs={"server_default": text("FALSE")})
+    can_users_edit_info: bool = Field(default=False, sa_column_kwargs={"server_default": text("FALSE")})
     accounts: list[Account] = Relationship(back_populates="group")
     expenses: list["Expense"] = Relationship(back_populates="group")
 
@@ -69,9 +79,9 @@ class Group(Validated, Id, CreatedAt, Enabled, SQLModel, table=True):
 
 
 class Task(Id, CreatedAt, UpdatedAt, SQLModel, table=True):
-    status: TaskStatus = Field(default=TaskStatus.PENDING)
-    title: str
+    title: str = Field(max_length=255)
     description: str | None = Field(default=None, nullable=True)
+    status: TaskStatus = TaskStatus.PENDING
     deadline: datetime = Field(sa_type=DateTime(timezone=True))
 
     group_id: TypeId = Field(foreign_key="group.id")
@@ -91,11 +101,14 @@ class Task(Id, CreatedAt, UpdatedAt, SQLModel, table=True):
 
 
 class Expense(Validated, Id, CreatedAt, UpdatedAt, SQLModel, table=True):
+    title: str = Field(max_length=255)
+    details: str | None = Field(default=None, nullable=True)
+    paid_on: date = Field(sa_type=Date())
     payee_id: TypeId = Field(foreign_key="user.id")
     group_id: TypeId = Field(foreign_key="group.id")
     group: Group = Relationship(back_populates="expenses")
     amount: TypeMoney
-    split_type: SplitType = Field(default=SplitType.EQUAL)
+    split_type: SplitType = SplitType.EQUAL
     splits: list["Split"] = Relationship(back_populates="expense")
     images: list["ExpenseImage"] = Relationship(back_populates="expense")
 

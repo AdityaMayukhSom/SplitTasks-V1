@@ -5,7 +5,7 @@ from fastapi import Depends
 from fastapi.encoders import jsonable_encoder
 from pydantic import EmailStr, HttpUrl, model_validator
 from pydantic_extra_types.currency_code import Currency
-from sqlalchemy import Engine, text
+from sqlalchemy import Engine, false
 from sqlalchemy.sql.sqltypes import Date, DateTime
 from sqlmodel import AutoString, Field, Relationship, SQLModel, create_engine  # type: ignore
 
@@ -18,7 +18,7 @@ from app.repository.types import TypeId, TypeMobile, TypeMoney
 class Account(Id, CreatedAt, UpdatedAt, Enabled, table=True):
     user_id: TypeId = Field(foreign_key="user.id", index=True)
     group_id: TypeId = Field(foreign_key="group.id", index=True)
-    balance: TypeMoney
+    balance: TypeMoney = Field(default=0.0)
     membership_status: MembershipStatus = MembershipStatus.REQUESTED
     user: "User" = Relationship(back_populates="accounts")
     group: "Group" = Relationship(back_populates="accounts")
@@ -57,8 +57,8 @@ class User(Id, CreatedAt, UpdatedAt, Enabled, table=True):
             raise ValueError("both email and mobile number cannot be missing")
         return self
 
-    def is_member(self, group_id: TypeId) -> bool:
-        return any(group_id == a.group_id for a in self.accounts if a.membership_status == MembershipStatus.ACCEPTED)
+    def is_active_member_of(self, group_id: TypeId) -> bool:
+        return any(group_id == a.group_id for a in self.accounts if a.membership_status == MembershipStatus.ACTIVE)
 
 
 class Group(Id, CreatedAt, Enabled, table=True):
@@ -70,13 +70,13 @@ class Group(Id, CreatedAt, Enabled, table=True):
     display_image: HttpUrl | None = Field(sa_type=AutoString, default=None, nullable=True)
     creator_id: TypeId = Field(foreign_key="user.id")
     admin_id: TypeId = Field(foreign_key="user.id")
-    can_users_invite: bool = Field(default=False, sa_column_kwargs={"server_default": text("FALSE")})
-    can_users_edit_info: bool = Field(default=False, sa_column_kwargs={"server_default": text("FALSE")})
+    can_users_invite: bool = Field(default=False, sa_column_kwargs={"server_default": false()})
+    can_users_edit_info: bool = Field(default=False, sa_column_kwargs={"server_default": false()})
     accounts: list[Account] = Relationship(back_populates="group")
     expenses: list["Expense"] = Relationship(back_populates="group")
 
-    def includes_user(self, user_id: TypeId) -> bool:
-        return any(user_id == a.user_id for a in self.accounts)
+    # def is_active_member(self, user_id: TypeId) -> bool:
+    #     return any(user_id == a.user_id for a in self.accounts if a.membership_status == MembershipStatus.ACTIVE)
 
 
 class Task(Id, CreatedAt, UpdatedAt, table=True):

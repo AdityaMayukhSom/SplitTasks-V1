@@ -113,7 +113,6 @@ def store_user(
 
     hasher = PasswordHash.recommended()
     pw_hash = hasher.hash(password)
-
     user_db = User(name=name, email=val_email, mobile=val_mobile, password_hash=pw_hash, enabled=enabled)
 
     session.add(user_db)

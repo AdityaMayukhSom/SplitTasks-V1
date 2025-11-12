@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Body, status
@@ -5,10 +6,17 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from pydantic_extra_types.currency_code import Currency
 
-from app.errors.group import CodeGroupAuth, CodeGroupInvite, ErrGroupAuth, ErrGroupInvite
-from app.repository.models import Group, User
+from app.errors.error import (
+    CodeGroupAuth,
+    CodeGroupInvite,
+    CodeItemNotFound,
+    ErrGroupAuth,
+    ErrGroupInvite,
+    ErrItemNotFound,
+)
+from app.repository.models import Account, Group, User
 from app.repository.session import SessionDep
-from app.repository.types import TypeId
+from app.repository.types import TypeId, id_to_str
 from app.routes.base_payload import BasePayload
 from app.routes.security import CurrentUserDep
 
@@ -25,7 +33,13 @@ class GroupIdentifier(BasePayload):
     id: TypeId
 
 
-@group_router.post("/create", response_class=JSONResponse, response_model=GroupIdentifier)
+@group_router.post(
+    "/create",
+    response_class=JSONResponse,
+    response_model=GroupIdentifier,
+    status_code=status.HTTP_201_CREATED,
+    tags=["group"],
+)
 def create_group(
     group_create: Annotated[GroupCreate, Body()],
     current_user: CurrentUserDep,
@@ -43,28 +57,38 @@ def create_group(
     session.commit()
     payload = GroupIdentifier(id=new_group.id)
 
-    return JSONResponse(content=jsonable_encoder(payload), status_code=status.HTTP_201_CREATED)
+    return JSONResponse(status_code=status.HTTP_201_CREATED, content=jsonable_encoder(payload))
 
 
-class GroupInvite(BasePayload):
+class InviteUser(BasePayload):
     group_id: TypeId
     invitee_id: TypeId
 
 
-@group_router.post("/invite", response_class=JSONResponse)
-def invite_user(group_invite: Annotated[GroupInvite, Body()], current_user: CurrentUserDep, session: SessionDep):
-    group = session.get(Group, group_invite.group_id)
+class GroupInvitation(BasePayload):
+    account_id: TypeId
+    group_id: TypeId
+    invitee_id: TypeId
+    inviter_id: TypeId
+    requested_at: datetime
+
+
+@group_router.post("/invite", response_class=JSONResponse, response_model=GroupInvitation, tags=["group", "account"])
+def invite_user(invitation: Annotated[InviteUser, Body()], current_user: CurrentUserDep, session: SessionDep):
+    group = session.get(Group, invitation.group_id)
+
     if group is None:
-        raise ErrGroupInvite(
-            code=CodeGroupInvite.GROUP_DOES_NOT_EXIST,
-            detail="group with given id does not exist",
+        group_id_str = id_to_str(invitation.invitee_id)
+        raise ErrItemNotFound(
+            code=CodeItemNotFound.GROUP_NOT_FOUND,
+            detail=f"group with id ${group_id_str} not found",
         )
 
     # if the user is not part of the group, he or she cannot invite
-    if not group.includes_user(current_user.id):
+    if not current_user.is_active_member_of(group.id):
         raise ErrGroupAuth(
             code=CodeGroupAuth.NOT_MEMBER_OF_GROUP,
-            detail="user is not part of the group",
+            detail="user trying to invite is not part of the group",
         )
 
     # after this point, the user is at least a member of the group
@@ -75,16 +99,31 @@ def invite_user(group_invite: Annotated[GroupInvite, Body()], current_user: Curr
             detail="only admin can invite new members",
         )
 
-    invitee = session.get(User, group_invite.invitee_id)
+    invitee = session.get(User, invitation.invitee_id)
     if invitee is None:
-        raise ErrGroupInvite(
-            code=CodeGroupInvite.INVITEE_DOES_NOT_EXIST,
-            detail="requested invitee does not exist",
+        invitee_id_str = id_to_str(invitation.invitee_id)
+        raise ErrItemNotFound(
+            code=CodeItemNotFound.USER_NOT_FOUND,
+            detail=f"no user with id ${invitee_id_str} found.",
         )
 
-    if group.includes_user(invitee.id):
+    if invitee.is_active_member_of(group.id):
         raise ErrGroupInvite(
             status=status.HTTP_409_CONFLICT,
-            code=CodeGroupInvite.ALREADY_MEMBER,
+            code=CodeGroupInvite.INVITEE_ALREADY_MEMBER,
             detail="invitee is already part of the group",
         )
+
+    account = Account(user_id=invitee.id, group_id=group.id)
+    session.add(account)
+    session.commit()
+    payload = GroupInvitation(
+        account_id=account.id,
+        group_id=group.id,
+        invitee_id=invitee.id,
+        inviter_id=current_user.id,
+        # or section will not be executed as created at will be populated from
+        # the database side via on created clause. this is to satisfy pylance
+        requested_at=account.created_at or datetime.now(timezone.utc),
+    )
+    return JSONResponse(content=jsonable_encoder(payload))

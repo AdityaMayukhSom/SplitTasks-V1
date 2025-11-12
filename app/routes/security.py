@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
 from app.config.vars import JWTVars, JWTVarsDep
-from app.errors.security import CodeOAuth, ErrOAuth
+from app.errors.error import CodeOAuth, ErrOAuth
 from app.repository.models import User
 from app.repository.session import SessionDep
 from app.repository.types import id_to_str, str_to_id
@@ -43,17 +43,13 @@ class TokenPayload(BasePayload):
 security_router = APIRouter()
 
 
-@security_router.get("/error-oauth")
-def oauth_error():
-    raise ErrOAuth(code=CodeOAuth.INVALID_CLIENT, detail=None)
-
-
 @security_router.post(
     "/token",
     response_model=TokenPayload,
     response_class=JSONResponse,
-    tags=["security"],
+    status_code=status.HTTP_201_CREATED,
     description="if the user account is disabled, no access token will be granted.",
+    tags=["security"],
 )
 def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
@@ -93,8 +89,8 @@ def login_for_access_token(
     )
 
     return JSONResponse(
+        status_code=status.HTTP_201_CREATED,
         content=payload.model_dump(mode="json"),
-        status_code=status.HTTP_200_OK,
         headers={"cache-control": "no-store"},
     )
 

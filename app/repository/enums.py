@@ -22,9 +22,9 @@ class TaskStatus(StrEnum):
 
 
 class MembershipStatus(StrEnum):
+    ACTIVE = auto()
     REQUESTED = auto()
     CANCELLED = auto()
     DECLINED = auto()
-    ACCEPTED = auto()
     EXITED = auto()
     REMOVED = auto()

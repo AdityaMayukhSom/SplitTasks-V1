@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from pydantic import EmailStr, SecretStr, StringConstraints, model_validator
 from sqlmodel import and_, col, select
 
-from app.errors.user import CodeUserExists, ErrUserExists
+from app.errors.error import CodeUserExists, ErrUserExists
 from app.repository.models import User
 from app.repository.session import SessionDep
 from app.repository.types import TypeId, TypeMobile
@@ -31,11 +31,6 @@ class UserRegister(BasePayload):
 
 class UserIdentifier(BasePayload):
     id: TypeId
-
-
-@user_router.get("/error-user-exists")
-def user_exists_error():
-    raise ErrUserExists(code=CodeUserExists.EMAIL_EXISTS)
 
 
 @user_router.post(

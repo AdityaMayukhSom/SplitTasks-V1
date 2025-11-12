@@ -1,6 +1,8 @@
 from enum import StrEnum, auto
-from fastapi import Request, Response, status
-from fastapi.responses import JSONResponse
+from typing import override
+
+from fastapi import Request, Response
+
 from app.errors.conf import ErrBase
 
 
@@ -14,7 +16,10 @@ class CodeOAuth(StrEnum):
 
 
 class ErrOAuth(ErrBase[CodeOAuth]):
+    default_status_code = 401
+
+    @override
     @staticmethod
     async def handle_error_response(_: Request, exc: ErrBase[CodeOAuth]) -> Response:
-        sc = exc.status if exc.status is not None else status.HTTP_401_UNAUTHORIZED
-        return JSONResponse(status_code=sc, content=exc, headers={"WWW-Authenticate": "Bearer"})
+        exc.headers["WWW-Authenticate"] = "Bearer"
+        return exc.create_json_response()

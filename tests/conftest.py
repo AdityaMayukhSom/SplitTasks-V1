@@ -12,8 +12,8 @@ from sqlmodel.pool import StaticPool
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.dirname(SCRIPT_DIR))
 
-from app.main import app
 from app.config.vars import JWTVars, get_jwt_vars
+from app.main import app
 from app.repository.session import get_session
 
 

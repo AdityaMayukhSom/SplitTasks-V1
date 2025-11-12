@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
 from app.config.vars import JWTVars, JWTVarsDep
-from app.errors.security import ErrOAuth, CodeOAuth
+from app.errors.security import CodeOAuth, ErrOAuth
 from app.repository.models import User
 from app.repository.session import SessionDep
 from app.repository.types import id_to_str, str_to_id
@@ -41,6 +41,11 @@ class TokenPayload(BasePayload):
 
 
 security_router = APIRouter()
+
+
+@security_router.get("/error-oauth")
+def oauth_error():
+    raise ErrOAuth(code=CodeOAuth.INVALID_CLIENT, detail=None)
 
 
 @security_router.post(

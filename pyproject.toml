@@ -14,6 +14,7 @@ dependencies = [
     "pydantic-extra-types>=2.10.6",
     "pydantic-settings>=2.11.0",
     "pyjwt[crypto]>=2.10.1",
+    "requests>=2.32.5",
     "sqlmodel>=0.0.27",
     "typing-extensions>=4.15.0",
 ]
@@ -23,20 +24,15 @@ maintainers = [
 ]
 
 [dependency-groups]
-dev = [
-    "mypy>=1.18.2",
-    "mypy-extensions>=1.1.0",
-    "pytest>=8.4.2",
-]
-
-[tool.black]
-line-length = 120
-
-[tool.mypy]
-plugins = ['pydantic.mypy']
+dev = ["pytest>=8.4.2", "pytest-cov>=7.0.0"]
 
 [tool.pytest.ini_options]
 addopts = "-s --cov=app"
 
 [tool.ruff]
 line-length = 120
+
+[tool.ruff.lint.isort]
+length-sort-straight = true
+force-single-line = false
+combine-as-imports = true

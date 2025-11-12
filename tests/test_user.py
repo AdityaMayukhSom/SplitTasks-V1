@@ -114,6 +114,21 @@ def test_create_user_with_mobile_valid(client: TestClient, session: Session):
     assert user_db.mobile == payload["mobile"]
 
 
+def test_user_obj_creation():
+    user_db = User(
+        name="Tony Stark",
+        email="tony@stark.industries",
+        mobile="+91 98654 89765",
+        password_hash="super-hashed-password@123",
+        enabled=False,
+    )
+    assert user_db.name == "Tony Stark"
+    assert user_db.email == "tony@stark.industries"
+    assert user_db.mobile == "+91 98654 89765"
+    assert user_db.password_hash == "super-hashed-password@123"
+    assert not user_db.enabled
+
+
 def test_create_user_with_email_valid(client: TestClient, session: Session):
     payload = {
         "email": "heisenberg@chemistry.org",
@@ -144,16 +159,16 @@ def test_duplicate_user_create(session: Session, client: TestClient):
     resp_err = client.post("/user/register", json=payload)
     assert resp_err.status_code == status.HTTP_409_CONFLICT
     data_err = resp_err.json()
-    assert data_err["detail"]["error"] == "username_exists"
+    assert data_err["code"] == "email_exists"
 
     payload["email"] = "new_email_same_mobile@abc.com"
 
     resp_err = client.post("/user/register", json=payload)
     assert resp_err.status_code == status.HTTP_409_CONFLICT
     data_err = resp_err.json()
-    assert data_err["detail"]["error"] == "username_exists"
+    assert data_err["code"] == "mobile_exists"
 
-    payload["mobile"] = "+91 45647 69000"
+    payload["mobile"] = "+91 95647 69690"
 
     resp_suc = client.post("/user/register", json=payload)
     assert resp_suc.status_code == status.HTTP_201_CREATED

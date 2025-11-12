@@ -1,7 +1,6 @@
 from abc import ABC
 
-
-from pydantic import BaseModel, ConfigDict, AliasGenerator
+from pydantic import AliasGenerator, BaseModel, ConfigDict
 from pydantic.alias_generators import to_snake
 
 

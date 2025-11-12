@@ -1,5 +1,5 @@
 import logging
-from typing import Literal
+from typing import Literal, overload
 
 from email_validator import validate_email
 from phonenumbers import PhoneNumberFormat, format_number, parse as pn_parse
@@ -25,7 +25,11 @@ class InvalidPasswordError(Exception):
 UsernameType = Literal["unknown", "email", "mobile"]
 
 
-def get_validated_username(username: str | None, *, username_type: UsernameType = "unknown") -> str | None:
+@overload
+def get_validated_username(username: None, *, username_type: UsernameType = "unknown") -> None: ...
+@overload
+def get_validated_username(username: str, *, username_type: UsernameType = "unknown") -> str: ...
+def get_validated_username(username: str | None, *, username_type: UsernameType = "unknown"):
     if username is None:
         return username
 
@@ -80,7 +84,6 @@ def store_user(
                         combined with email/mobile) are provided.
     :return: The newly created User object.
     """
-
     if username is None and email is None and mobile is None:
         raise ValueError("username, email and mobile cannot be None together")
 
@@ -105,15 +108,14 @@ def store_user(
         logging.info("username provided, does not contains `at` symbol and mobile not provided")
         mobile = username
 
-    hasher = PasswordHash.recommended()
+    val_email = get_validated_username(email, username_type="email")
+    val_mobile = get_validated_username(mobile, username_type="mobile")
 
-    user_db = User(
-        name=name,
-        email=get_validated_username(email, username_type="email"),
-        mobile=get_validated_username(mobile, username_type="mobile"),
-        password_hash=hasher.hash(password),
-        enabled=enabled,
-    )
+    hasher = PasswordHash.recommended()
+    pw_hash = hasher.hash(password)
+
+    user_db = User(name=name, email=val_email, mobile=val_mobile, password_hash=pw_hash, enabled=enabled)
+
     session.add(user_db)
     session.commit()
     session.refresh(user_db)

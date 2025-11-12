@@ -2,49 +2,41 @@ import uuid
 from abc import ABC
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
-from sqlalchemy import text
-from sqlmodel import (
-    DateTime,
-    Field,  # type: ignore
-    SQLModel,
-)
+import sqlalchemy.sql.functions
+from sqlmodel import DateTime, Field, SQLModel  # type: ignore
+
+# from sqlmodel._compat import SQLModelConfig
 from app.repository.types import TypeId
 
 
-class Validated(ABC, BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-        validate_assignment=True,
-        validate_default=True,
-    )
-
-
-class Id(ABC, SQLModel):
+class Id(SQLModel, ABC):
     id: TypeId = Field(primary_key=True, default_factory=uuid.uuid7)
 
 
-class CreatedAt(ABC, SQLModel):
+class CreatedAt(SQLModel, ABC):
     created_at: datetime | None = Field(
         default=None,
         sa_type=DateTime(timezone=True),
-        sa_column_kwargs={"server_default": text("NOW()")},
+        sa_column_kwargs={"server_default": sqlalchemy.sql.functions.now()},
         nullable=False,
     )
 
 
-class UpdatedAt(ABC, SQLModel):
+class UpdatedAt(SQLModel, ABC):
     updated_at: datetime | None = Field(
         default=None,
         nullable=False,
         sa_type=DateTime(timezone=True),
-        sa_column_kwargs={"server_default": text("NOW()"), "onupdate": text("NOW()")},
+        sa_column_kwargs={
+            "server_default": sqlalchemy.sql.functions.now(),
+            "onupdate": sqlalchemy.sql.functions.now(),
+        },
     )
 
 
-class Enabled(ABC, SQLModel):
+class Enabled(SQLModel, ABC):
     enabled: bool = Field(
         default=True,
         nullable=False,
-        sa_column_kwargs={"server_default": text("TRUE")},
+        sa_column_kwargs={"server_default": sqlalchemy.sql.functions.now()},
     )

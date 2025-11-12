@@ -1,27 +1,21 @@
 from datetime import date, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends
+from fastapi.encoders import jsonable_encoder
 from pydantic import EmailStr, HttpUrl, model_validator
 from pydantic_extra_types.currency_code import Currency
 from sqlalchemy import Engine, text
-from sqlmodel import (
-    AutoString,
-    Date,
-    DateTime,
-    Field,  # type: ignore
-    Relationship,
-    SQLModel,
-    create_engine,
-)
+from sqlalchemy.sql.sqltypes import Date, DateTime
+from sqlmodel import AutoString, Field, Relationship, SQLModel, create_engine  # type: ignore
 
 from app.config.vars import DBVarsDep
-from app.repository.base_models import CreatedAt, Enabled, Id, UpdatedAt, Validated
+from app.repository.base_models import CreatedAt, Enabled, Id, UpdatedAt
 from app.repository.enums import MembershipStatus, SplitType, TaskStatus
 from app.repository.types import TypeId, TypeMobile, TypeMoney
 
 
-class Account(Id, CreatedAt, UpdatedAt, Enabled, SQLModel, table=True):
+class Account(Id, CreatedAt, UpdatedAt, Enabled, table=True):
     user_id: TypeId = Field(foreign_key="user.id", index=True)
     group_id: TypeId = Field(foreign_key="group.id", index=True)
     balance: TypeMoney
@@ -30,7 +24,7 @@ class Account(Id, CreatedAt, UpdatedAt, Enabled, SQLModel, table=True):
     group: "Group" = Relationship(back_populates="accounts")
 
 
-class User(Validated, Id, CreatedAt, UpdatedAt, Enabled, SQLModel, table=True):
+class User(Id, CreatedAt, UpdatedAt, Enabled, table=True):
     name: str | None = Field(default=None, max_length=72, nullable=True)
     email: EmailStr | None = Field(unique=True, index=True, default=None, max_length=255, nullable=True)
     mobile: TypeMobile | None = Field(unique=True, index=True, default=None, max_length=30, nullable=True)
@@ -50,8 +44,15 @@ class User(Validated, Id, CreatedAt, UpdatedAt, Enabled, SQLModel, table=True):
         sa_relationship_kwargs={"foreign_keys": "Task.assignee_id"},
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def print_out_user_data(cls, data: Any):  # type: ignore
+        print("user validator before", jsonable_encoder(data))
+        return data  # type: ignore
+
     @model_validator(mode="after")
     def _has_username(self):
+        print("inside has username", jsonable_encoder(self))
         if self.email is None and self.mobile is None:
             raise ValueError("both email and mobile number cannot be missing")
         return self
@@ -60,7 +61,7 @@ class User(Validated, Id, CreatedAt, UpdatedAt, Enabled, SQLModel, table=True):
         return any(group_id == a.group_id for a in self.accounts if a.membership_status == MembershipStatus.ACCEPTED)
 
 
-class Group(Validated, Id, CreatedAt, Enabled, SQLModel, table=True):
+class Group(Id, CreatedAt, Enabled, table=True):
     name: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, nullable=True)
     currency: Currency
@@ -78,7 +79,7 @@ class Group(Validated, Id, CreatedAt, Enabled, SQLModel, table=True):
         return any(user_id == a.user_id for a in self.accounts)
 
 
-class Task(Id, CreatedAt, UpdatedAt, SQLModel, table=True):
+class Task(Id, CreatedAt, UpdatedAt, table=True):
     title: str = Field(max_length=255)
     description: str | None = Field(default=None, nullable=True)
     status: TaskStatus = TaskStatus.PENDING
@@ -100,7 +101,7 @@ class Task(Id, CreatedAt, UpdatedAt, SQLModel, table=True):
     )
 
 
-class Expense(Validated, Id, CreatedAt, UpdatedAt, SQLModel, table=True):
+class Expense(Id, CreatedAt, UpdatedAt, table=True):
     title: str = Field(max_length=255)
     details: str | None = Field(default=None, nullable=True)
     paid_on: date = Field(sa_type=Date())
@@ -113,7 +114,7 @@ class Expense(Validated, Id, CreatedAt, UpdatedAt, SQLModel, table=True):
     images: list["ExpenseImage"] = Relationship(back_populates="expense")
 
 
-class ExpenseImage(Id, SQLModel, table=True):
+class ExpenseImage(Id, table=True):
     uploaded_by: TypeId = Field(foreign_key="user.id")
     expense_id: TypeId = Field(foreign_key="expense.id", index=True)
     expense: Expense = Relationship(back_populates="images")

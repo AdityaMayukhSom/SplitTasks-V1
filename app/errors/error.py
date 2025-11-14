@@ -9,12 +9,13 @@ from app.errors.conf import ErrBase
 
 
 class CodeGroupAuth(StrEnum):
-    NOT_MEMBER_OF_GROUP = auto()
-    NOT_AN_ADMIN = auto()
+    FORBIDDEN_NOT_MEMBER = auto()
+    FORBIDDEN_NOT_ADMIN = auto()
+    FORBIDDEN_DISABLED = auto()
 
 
 class ErrGroupAuth(ErrBase[CodeGroupAuth]):
-    default_status_code = 401
+    default_status_code = 403
 
 
 # ------------------------------------------------------------------------------
@@ -36,6 +37,7 @@ class ErrGroupInvite(ErrBase[CodeGroupInvite]):
 class CodeItemNotFound(StrEnum):
     USER_NOT_FOUND = auto()
     GROUP_NOT_FOUND = auto()
+    INVITATION_NOT_FOUND = auto()
 
 
 class ErrItemNotFound(ErrBase[CodeItemNotFound]):
@@ -77,3 +79,40 @@ class ErrOAuth(ErrBase[CodeOAuth]):
 
 
 # ------------------------------------------------------------------------------
+
+
+class CodeAccountAuth(StrEnum):
+    FORBIDDEN_NOT_OWNER = auto()
+    FORBIDDEN_DISABLED = auto()
+    FORBIDDEN_DID_NOT_INVITE = auto()
+
+
+class ErrAccountAuth(ErrBase[CodeAccountAuth]):
+    default_status_code = 403
+
+
+# ------------------------------------------------------------------------------
+
+
+class CodeInvitation(StrEnum):
+    ALREADY_MEMBER = auto()
+    ALREADY_PROCESSED = auto()
+    ALREADY_CANCELLED = auto()
+    ALREADY_DECLINED = auto()
+    ALREADY_ACCEPTED = auto()
+    ACCOUNT_DISABLED = auto()
+
+
+class ErrInvitation(ErrBase[CodeInvitation]):
+    default_status_code = 400
+
+
+# ------------------------------------------------------------------------------
+
+
+class CodeInvitationAuth(StrEnum):
+    ADMIN_ONLY_ACCESS = auto()
+
+
+class ErrInvitationAuth(ErrBase[CodeInvitationAuth]):
+    default_status_code = 403

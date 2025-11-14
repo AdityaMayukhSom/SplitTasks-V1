@@ -4,7 +4,7 @@ from datetime import datetime
 import sqlalchemy.sql.functions as saf
 from sqlmodel import (
     DateTime,
-    Field,  # type: ignore
+    Field as SQLField,  # type: ignore
     SQLModel,
     true,
 )
@@ -13,14 +13,14 @@ from app.repository.types import TypeId
 
 
 class Id(SQLModel):
-    id: TypeId = Field(
+    id: TypeId = SQLField(
         primary_key=True,
         default_factory=uuid.uuid7,
     )
 
 
 class CreatedAt(SQLModel):
-    created_at: datetime | None = Field(
+    created_at: datetime | None = SQLField(
         default=None,
         nullable=False,
         sa_type=DateTime(timezone=True),
@@ -31,7 +31,7 @@ class CreatedAt(SQLModel):
 
 
 class UpdatedAt(SQLModel):
-    updated_at: datetime | None = Field(
+    updated_at: datetime | None = SQLField(
         default=None,
         nullable=False,
         sa_type=DateTime(timezone=True),
@@ -43,7 +43,7 @@ class UpdatedAt(SQLModel):
 
 
 class Enabled(SQLModel):
-    enabled: bool = Field(
+    enabled: bool = SQLField(
         default=True,
         nullable=False,
         sa_column_kwargs={

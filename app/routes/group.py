@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Body, status
@@ -9,9 +10,11 @@ from pydantic_extra_types.currency_code import Currency
 from app.errors.error import (
     CodeGroupAuth,
     CodeGroupInvite,
+    CodeInvitationAuth,
     CodeItemNotFound,
     ErrGroupAuth,
     ErrGroupInvite,
+    ErrInvitationAuth,
     ErrItemNotFound,
 )
 from app.repository.models import Account, Group, User
@@ -69,6 +72,7 @@ class GroupInvitation(BasePayload):
     account_id: TypeId
     group_id: TypeId
     invitee_id: TypeId
+    invitee_name: str | None
     inviter_id: TypeId
     requested_at: datetime
 
@@ -87,15 +91,15 @@ def invite_user(invitation: Annotated[InviteUser, Body()], current_user: Current
     # if the user is not part of the group, he or she cannot invite
     if not current_user.is_active_member_of(group.id):
         raise ErrGroupAuth(
-            code=CodeGroupAuth.NOT_MEMBER_OF_GROUP,
+            code=CodeGroupAuth.FORBIDDEN_NOT_MEMBER,
             detail="user trying to invite is not part of the group",
         )
 
     # after this point, the user is at least a member of the group
 
     if not group.can_users_invite and group.admin_id != current_user.id:
-        raise ErrGroupAuth(
-            code=CodeGroupAuth.NOT_AN_ADMIN,
+        raise ErrInvitationAuth(
+            code=CodeInvitationAuth.ADMIN_ONLY_ACCESS,
             detail="only admin can invite new members",
         )
 
@@ -114,16 +118,21 @@ def invite_user(invitation: Annotated[InviteUser, Body()], current_user: Current
             detail="invitee is already part of the group",
         )
 
-    account = Account(user_id=invitee.id, group_id=group.id)
+    account = Account(
+        owner_id=invitee.id,
+        group_id=group.id,
+        invited_by=current_user.id,
+        balance=Decimal(0.0),
+        invited_at=datetime.now(timezone.utc),
+    )
     session.add(account)
     session.commit()
     payload = GroupInvitation(
         account_id=account.id,
         group_id=group.id,
         invitee_id=invitee.id,
+        invitee_name=invitee.name,
         inviter_id=current_user.id,
-        # or section will not be executed as created at will be populated from
-        # the database side via on created clause. this is to satisfy pylance
-        requested_at=account.created_at or datetime.now(timezone.utc),
+        requested_at=account.invited_at,
     )
     return JSONResponse(content=jsonable_encoder(payload))

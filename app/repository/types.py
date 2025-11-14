@@ -2,8 +2,8 @@ import uuid
 from decimal import Decimal
 from typing import Annotated
 
+from pydantic import Field
 from pydantic_extra_types.phone_numbers import PhoneNumberValidator
-from sqlmodel import Field  # type: ignore
 
 # https://stackoverflow.com/questions/224462/storing-money-in-a-decimal-column-what-precision-and-scale
 TypeMoney = Annotated[Decimal, Field(ge=0.0, max_digits=13, decimal_places=4)]

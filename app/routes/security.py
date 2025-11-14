@@ -107,7 +107,7 @@ def get_current_user(token: OAuth2SchemeDep, jwt_vars: JWTVarsDep, session: Sess
     except jwt.ExpiredSignatureError as exc:
         raise ErrOAuth(
             code=CodeOAuth.INVALID_GRANT,
-            detail="jwt token expired, issue a new token",
+            detail="jwt token expired; please issue a new token",
         ) from exc
     except jwt.InvalidTokenError as exc:
         raise ErrOAuth(
@@ -121,7 +121,7 @@ def get_current_user(token: OAuth2SchemeDep, jwt_vars: JWTVarsDep, session: Sess
     if jwt_subject is None:
         raise ErrOAuth(
             code=CodeOAuth.INVALID_CLIENT,
-            detail="jwt subject not present in token",
+            detail="invalid jwt token; jwt subject not present",
         )
 
     user: User | None = session.get(User, str_to_id(jwt_subject))
@@ -129,14 +129,14 @@ def get_current_user(token: OAuth2SchemeDep, jwt_vars: JWTVarsDep, session: Sess
     if user is None:
         raise ErrOAuth(
             code=CodeOAuth.INVALID_CLIENT,
-            detail="invalid credentials, no user exists, contact administrator",
+            detail="invalid credentials; no user exists; contact administrator",
         )
 
     # if the user account has been disabled,
     if not user.enabled:
         raise ErrOAuth(
             code=CodeOAuth.INVALID_GRANT,
-            detail="user account is disabled, contact administrator",
+            detail="user account disabled; cannot process request; contact administrator",
         )
 
     return user

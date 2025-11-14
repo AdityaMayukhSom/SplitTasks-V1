@@ -34,7 +34,7 @@ def test_security_token_generation(
 
     data = resp.json()
 
-    assert resp.status_code == status.HTTP_200_OK
+    assert resp.status_code == status.HTTP_201_CREATED
     assert resp.headers.get("cache-control") == "no-store"
     assert data["token_type"] == "Bearer"
 

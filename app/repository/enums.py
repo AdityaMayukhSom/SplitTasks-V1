@@ -22,9 +22,11 @@ class TaskStatus(StrEnum):
 
 
 class MembershipStatus(StrEnum):
+    PENDING = auto()
+    ALTERNATE = auto()
+    """represents user is a member of the same group via another account"""
     ACTIVE = auto()
-    REQUESTED = auto()
-    CANCELLED = auto()
     DECLINED = auto()
-    EXITED = auto()
+    CANCELLED = auto()
     REMOVED = auto()
+    EXITED = auto()

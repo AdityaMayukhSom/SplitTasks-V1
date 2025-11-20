@@ -17,15 +17,15 @@ from sqlmodel import (
 
 from app.config.vars import DBVarsDep
 from app.repository.base_models import CreatedAt, Enabled, Id, UpdatedAt
-from app.repository.enums import MembershipStatus, SplitType, TaskStatus
-from app.repository.types import TypeId, TypeMobile, TypeMoney
+from app.repository.enums import MembershipStatus, TaskStatus
+from app.repository.types import TypeBalance, TypeId, TypeMobile, TypeMoney
 
 
 class Account(Id, Enabled, table=True):
     owner_id: TypeId = SQLField(foreign_key="user.id", index=True)
     group_id: TypeId = SQLField(foreign_key="group.id", index=True)
     invited_by: TypeId = SQLField(foreign_key="user.id", index=True)
-    balance: TypeMoney
+    balance: TypeBalance
     membership_status: MembershipStatus = SQLField(default=MembershipStatus.PENDING)
     invited_at: datetime = SQLField(nullable=False, sa_type=DateTime(timezone=True))
     member_since: datetime | None = SQLField(default=None, nullable=False, sa_type=DateTime(timezone=True))
@@ -82,6 +82,7 @@ class Group(Id, CreatedAt, Enabled, table=True):
     can_users_invite: bool = SQLField(default=False, sa_column_kwargs={"server_default": false()})
     can_users_edit_info: bool = SQLField(default=False, sa_column_kwargs={"server_default": false()})
     can_users_see_invitations: bool = SQLField(default=False, sa_column_kwargs={"server_default": false()})
+    can_users_delete_expense: bool = SQLField(default=False, sa_column_kwargs={"server_default": false()})
     accounts: list[Account] = Relationship(back_populates="group")
     expenses: list["Expense"] = Relationship(back_populates="group")
 
@@ -112,28 +113,32 @@ class Task(Id, CreatedAt, UpdatedAt, table=True):
 class Expense(Id, CreatedAt, UpdatedAt, table=True):
     title: str = SQLField(max_length=255)
     details: str | None = SQLField(default=None, nullable=True)
-    paid_on: date = SQLField(sa_type=Date())
-    payee_id: TypeId = SQLField(foreign_key="user.id")
     group_id: TypeId = SQLField(foreign_key="group.id")
     group: Group = Relationship(back_populates="expenses")
+    paid_by: TypeId = SQLField(foreign_key="user.id")
+    created_by: TypeId = SQLField(foreign_key="user.id")
+    paid_on: date = SQLField(sa_type=Date())
     amount: TypeMoney
-    split_type: SplitType = SplitType.EQUAL
     splits: list["Split"] = Relationship(back_populates="expense")
     images: list["ExpenseImage"] = Relationship(back_populates="expense")
 
 
 class ExpenseImage(Id, table=True):
+    """This is a weak entity and will only exist when there is an expense"""
+
     uploaded_by: TypeId = SQLField(foreign_key="user.id")
-    expense_id: TypeId = SQLField(foreign_key="expense.id", index=True)
-    expense: Expense = Relationship(back_populates="images")
     permalink: HttpUrl = SQLField(sa_type=AutoString)
+    expense_id: TypeId | None = SQLField(default=None, foreign_key="expense.id", index=True)
+    expense: Expense | None = Relationship(back_populates="images")
 
 
 class Split(SQLModel, table=True):
-    user_id: TypeId = SQLField(foreign_key="user.id", primary_key=True)
-    expense_id: TypeId = SQLField(foreign_key="expense.id", primary_key=True)
-    expense: Expense = Relationship(back_populates="splits")
+    """This is a weak entity and will only exist when there is an expense"""
+
     amount: TypeMoney
+    user_id: TypeId = SQLField(foreign_key="user.id", primary_key=True)
+    expense_id: TypeId | None = SQLField(default=None, foreign_key="expense.id", primary_key=True)
+    expense: Expense | None = Relationship(back_populates="splits")
 
 
 def get_engine(db_vars: DBVarsDep):

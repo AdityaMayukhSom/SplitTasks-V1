@@ -7,6 +7,7 @@ from app.errors.conf import handler_dict
 from app.middleware import ProcessTimeMiddleware
 
 # from app.repository.session import create_db_and_tables
+from app.routes.expense import expense_router
 from app.routes.group import group_router
 from app.routes.invitation import invitation_router
 from app.routes.security import security_router
@@ -30,4 +31,5 @@ app.add_middleware(ProcessTimeMiddleware)
 app.include_router(user_router, prefix="/user")
 app.include_router(group_router, prefix="/group")
 app.include_router(invitation_router, prefix="/invitation")
+app.include_router(expense_router, prefix="/expense")
 app.include_router(security_router)

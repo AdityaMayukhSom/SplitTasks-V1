@@ -8,12 +8,6 @@ class PaymentStatus(StrEnum):
     SETTLED = auto()
 
 
-class SplitType(StrEnum):
-    EQUAL = auto()
-    EXACT = auto()
-    PERCENTAGE = auto()
-
-
 class TaskStatus(StrEnum):
     CANCELLED = auto()
     DECLINED = auto()

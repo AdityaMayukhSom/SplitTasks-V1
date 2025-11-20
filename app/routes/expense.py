@@ -84,10 +84,10 @@ def create_expense(
     validate_active_group_members_have_split_entry(group, payload)
     validate_expense_amount_matches_split_total(payload)
 
-    ac_map = {ac.id: ac for ac in group.accounts}
+    ac_map = {id_to_str(ac.id): ac for ac in group.accounts}
 
     # add the balance to the user who actually paid
-    paid_by_ac = ac_map.get(payload.paid_by)
+    paid_by_ac = ac_map.get(id_to_str(payload.paid_by))
     if paid_by_ac is None:
         raise
 
@@ -115,7 +115,7 @@ def create_expense(
         expense.splits.append(s)
 
         # update the balance for this account
-        ac = ac_map.get(ps.user_id)
+        ac = ac_map.get(id_to_str(ps.user_id))
         if ac is None:
             # this is impossible condition as previously we have checked all users in the group
             # are in the expense and this map contains mapping for all users in the group. this
@@ -166,12 +166,12 @@ def update_expense(
 
     # revert back old split amounts and add new split amounts
 
-    ac_map = {ac.id: ac for ac in expense.group.accounts}
-    split_map = {split.user_id: split for split in expense.splits}
+    ac_map = {id_to_str(ac.id): ac for ac in expense.group.accounts}
+    split_map = {id_to_str(split.user_id): split for split in expense.splits}
 
     # add the balance to the user who actually paid
-    new_paid_by_ac = ac_map.get(payload.paid_by)
-    old_paid_by_ac = ac_map.get(expense.paid_by)
+    new_paid_by_ac = ac_map.get(id_to_str(payload.paid_by))
+    old_paid_by_ac = ac_map.get(id_to_str(expense.paid_by))
 
     if old_paid_by_ac is None:
         # this branch should never be triggered as old account should exist
@@ -199,11 +199,11 @@ def update_expense(
 
     for ps in payload.splits:
         # create a split to show in the group
-        s = split_map.get(ps.user_id)
+        s = split_map.get(id_to_str(ps.user_id))
         assert s is not None
 
         # update the balance for this account
-        ac = ac_map.get(ps.user_id)
+        ac = ac_map.get(id_to_str(ps.user_id))
         assert ac is not None
 
         ac.balance += s.amount

@@ -2,7 +2,7 @@ import math
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Body, HTTPException, status
+from fastapi import APIRouter, Body, status
 
 from app.errors.error import CodeItemNotFound, ErrItemNotFound
 from app.repository.enums import MembershipStatus
@@ -140,14 +140,14 @@ def create_expense(
 
 @expense_router.put("/{expense_id}")
 def update_expense(
-    expense_id: str,
+    expense_id: TypeId,
     payload: Annotated[ExpensePayload, Body()],
     current_user: CurrentUserDep,
     session: SessionDep,
 ):
     expense = session.get(Expense, expense_id)
     if not expense:
-        raise HTTPException(404, "Expense not found")
+        raise
 
     if expense.group_id != payload.group_id:
         # ensure the expense id belongs to the same group
@@ -255,7 +255,7 @@ def update_expense(
 
 @expense_router.delete("/{expense_id}", status_code=204)
 def delete_expense(
-    expense_id: str,
+    expense_id: TypeId,
     current_user: CurrentUserDep,
     session: SessionDep,
 ):
@@ -270,5 +270,6 @@ def delete_expense(
 
     if not expense.group.can_users_delete_expense and current_user.id != expense.group.admin_id:
         raise
+
     session.delete(expense)
     session.commit()

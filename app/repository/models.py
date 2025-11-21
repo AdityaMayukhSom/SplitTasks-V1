@@ -25,6 +25,7 @@ class Account(Id, Enabled, table=True):
     owner_id: TypeId = SQLField(foreign_key="user.id", index=True)
     group_id: TypeId = SQLField(foreign_key="group.id", index=True)
     invited_by: TypeId = SQLField(foreign_key="user.id", index=True)
+    accent_color: str | None = SQLField(default=None, nullable=True)
     balance: TypeBalance
     membership_status: MembershipStatus = SQLField(default=MembershipStatus.PENDING)
     invited_at: datetime = SQLField(nullable=False, sa_type=DateTime(timezone=True))
